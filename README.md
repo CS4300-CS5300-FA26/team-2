@@ -11,6 +11,7 @@ This document records where and when team members used AI assistance: the tool u
 |---|---|---|---|
 | Dominick | Claude (Anthropic) | Generating ideas for decomposed user stories (Section 3.2), including candidate stories for US3, US4, and US5. | Used as a starting point; the team reviewed, discussed, and edited before finalizing |
 | Seth | Claude (Anthropic) | Generating the images used in the Lo-Fi UI Alignment section (Section 3.3). | Used as a starting point, then adjusted by the team |
+| Nicole | Claude (Anthropic) |Generating way to word the Gherkin Acceptance Criterias | Used as a starting point, then adjusted by the team |
 | Riley | Claude (Anthropic) | Templating [specify: e.g., the document/section structure or formatting and grammar] | Used as a starting template, then filled in and edited by the team |
 | [Add more as needed] | | | |
 
