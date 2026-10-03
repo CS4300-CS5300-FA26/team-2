@@ -27,14 +27,15 @@ Update this file after every meaningful implementation change.
 
 ## Open Questions
 
-- Framework/UI stack not yet chosen — blocks `architecture.md` and
-  `ui-context.md` completion.
 - File/blob storage provider for resume uploads not yet chosen.
 - Background job runner (Celery, per epics, or alternative) not confirmed.
 
 ## Architecture Decisions
 
-- None yet — stack is still open.
+- Backend: Django 5.x + DRF (Python 3.12). Frontend: React + TypeScript
+  (Vite), separate SPA consuming the API over `/api/`. Deployment: Docker
+  Compose + nginx, host-agnostic, TLS deferred until a domain exists. See
+  `architecture.md` Stack table and Deployment section.
 
 ## Session Notes
 
