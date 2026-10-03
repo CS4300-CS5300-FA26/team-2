@@ -16,6 +16,8 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+backend/staticfiles/
+backend/media/
 
 # OS / editor
 .DS_Store
