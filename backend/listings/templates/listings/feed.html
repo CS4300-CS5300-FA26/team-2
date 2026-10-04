@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pathfinder - Job Feed</title>
+</head>
+<body>
+  <h1>Job Feed</h1>
+
+  <!-- go through each listing from the database -->
+  {% for listing in listings %}
+    <div>
+      <h3>{{ listing.title }}</h3>
+      <p>{{ listing.company }}</p>
+
+      <!-- clicking the button sends this form to toggle_bookmark -->
+      <form method="post" action="/feed/{{ listing.id }}/bookmark/">
+        {% csrf_token %}
+
+        {% if listing.id in saved_ids %}
+
+          <!-- this listing is saved, so show a FILLED bookmark -->
+          <button type="submit" aria-label="Remove bookmark">
+            <svg width="20" height="20" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="black">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        {% else %}
+
+          <!-- this listing is not saved, so show an EMPTY bookmark -->
+          <button type="submit" aria-label="Bookmark listing">
+            <svg width="20" height="20" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="none">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+        {% endif %}
+      </form>
+    </div>
+
+  <!-- if there are no listings, show this instead -->
+  {% empty %}
+    <p>No listings yet.</p>
+  {% endfor %}
+</body>
+</html>
