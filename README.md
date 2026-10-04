@@ -1,6 +1,17 @@
 # team-2
 CS 4300/5300 Fall 2026 — Team 2 group project
 
+## Documentation
+
+- `architecture/` — architecture notes, diagrams (system design, data flow, DB schema).
+- `agents/` — AI agent tooling: `AGENTS.md` (scoped agent rules, applies only within this
+  directory — do not move or duplicate elsewhere), `context/` (project/architecture/workflow
+  context the rules point at).
+- `branch-naming.md` — story branch naming convention.
+- `ai-authorship.md` — commit trailer convention for AI-assisted work.
+
+Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.drawio) plus rendered output, not images alone.
+
 # AI Usage Disclosure — Sprint 0-2
 
 This document records where and when team members used AI assistance: the tool used, what it helped with, and how the result was used.
