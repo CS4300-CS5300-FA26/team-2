@@ -1,44 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pathfinder - Job Feed</title>
+    <title>Pathfinder - Job Feed</title>
+
+    <style>
+        /* center the page and use a cleaner font */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f5f7;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        /* each listing is a white card */
+        .listing {
+            background-color: white;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+            /* put the text on the left and the bookmark on the right */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .listing h3 {
+            margin: 0 0 4px 0;
+        }
+
+        /* company name in gray */
+        .listing p {
+            margin: 0;
+            color: #555;
+        }
+
+        /* remove the default gray button box */
+        .bookmark-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        /* light circle when you hover over the bookmark */
+        .bookmark-button:hover {
+            background-color: #eee;
+            border-radius: 50%;
+        }
+    </style>
 </head>
 <body>
-  <h1>Job Feed</h1>
+    <h1>Job Feed</h1>
 
-  <!-- go through each listing from the database -->
-  {% for listing in listings %}
-    <div>
-      <h3>{{ listing.title }}</h3>
-      <p>{{ listing.company }}</p>
+    <!-- show each listing from the database -->
+    {% for listing in listings %}
+        <div class="listing">
 
-      <!-- clicking the button sends this form to toggle_bookmark -->
-      <form method="post" action="/feed/{{ listing.id }}/bookmark/">
-        {% csrf_token %}
+            <!-- left side: job title and company -->
+            <div>
+                <h3>{{ listing.title }}</h3>
+                <p>{{ listing.company }}</p>
+            </div>
 
-        {% if listing.id in saved_ids %}
+            <!-- right side: clicking the button saves or unsaves this listing -->
+            <form method="post" action="/feed/{{ listing.id }}/bookmark/">
+                {% csrf_token %}
+                <button type="submit" class="bookmark-button"
+                        aria-label="{% if listing.id in saved_ids %}Remove bookmark{% else %}Bookmark listing{% endif %}">
 
-          <!-- this listing is saved, so show a FILLED bookmark -->
-          <button type="submit" aria-label="Remove bookmark">
-            <svg width="20" height="20" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="black">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-        {% else %}
+                    <!-- filled black if saved, empty if not -->
+                    <svg width="24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2"
+                         fill="{% if listing.id in saved_ids %}black{% else %}none{% endif %}">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                </button>
+            </form>
+        </div>
 
-          <!-- this listing is not saved, so show an EMPTY bookmark -->
-          <button type="submit" aria-label="Bookmark listing">
-            <svg width="20" height="20" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="none">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-        {% endif %}
-      </form>
-    </div>
-
-  <!-- if there are no listings, show this instead -->
-  {% empty %}
-    <p>No listings yet.</p>
-  {% endfor %}
+    <!-- if there are no listings, show this instead -->
+    {% empty %}
+        <p>No listings yet.</p>
+    {% endfor %}
 </body>
 </html>
