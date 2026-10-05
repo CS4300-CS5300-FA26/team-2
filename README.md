@@ -28,3 +28,28 @@ This document records where and when team members used AI assistance: the tool u
 
 ## Notes
 All AI-assisted content was reviewed and edited by the team before inclusion in the final submission. No AI-generated content was submitted without team review.
+
+## Running the project locally
+
+1. Turn on your Python virtual environment
+2. Install the backend packages: `pip install -r backend/requirements.txt`
+3. Create a file `backend/.env` with this one line: `DATABASE_URL=sqlite:///db.sqlite3`
+4. Set up the database:
+   - `cd backend`
+   - `python manage.py migrate`
+   - `python manage.py createsuperuser`
+5. Start the server: `python manage.py runserver`
+6. Log in at http://localhost:8000/admin/ and add a few listings
+7. Open http://localhost:8000/feed/ to see the job feed
+
+**On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
+and open your DevEdu app link (ending in `/admin/` or `/feed/`) instead of localhost.
+
+To run the tests: `cd backend`, then `python manage.py test`
+
+## US4.1 — Bookmark a listing
+
+On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
+and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
+
+| Nicole Vance | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
