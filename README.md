@@ -24,6 +24,7 @@ This document records where and when team members used AI assistance: the tool u
 | Seth | Claude (Anthropic) | Generating the images used in the Lo-Fi UI Alignment section (Section 3.3). | Used as a starting point, then adjusted by the team |
 | Nicole | Claude (Anthropic) |Generating way to word the Gherkin Acceptance Criterias | Used as a starting point, then adjusted by the team |
 | Riley | Claude (Anthropic) | Templating [specify: e.g., the document/section structure or formatting and grammar] | Used as a starting template, then filled in and edited by the team |
+| Nicole Vance | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
 | [Add more as needed] | | | |
 
 ## Notes
@@ -39,8 +40,8 @@ All AI-assisted content was reviewed and edited by the team before inclusion in 
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-6. Log in at http://localhost:8000/admin/ and add a few listings
-7. Open http://localhost:8000/feed/ to see the job feed
+6. Log in at http://localhost:8000/admin/ with your superuser and add a few listings
+7. Open http://localhost:8000/feed/ to see the job feed. Regular users log in at http://localhost:8000/accounts/login/
 
 **On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
 and open your DevEdu app link (ending in `/admin/` or `/feed/`) instead of localhost.
@@ -51,5 +52,3 @@ To run the tests: `cd backend`, then `python manage.py test`
 
 On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
 and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
-
-| Nicole Vance | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
