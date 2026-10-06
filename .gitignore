@@ -27,6 +27,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# local database file
-db.sqlite3
