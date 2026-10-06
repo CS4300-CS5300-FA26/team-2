@@ -17,6 +17,7 @@ class AlertSerializer(serializers.ModelSerializer):
         keywords = attrs.get("keywords", getattr(self.instance, "keywords", ""))
         location = attrs.get("location", getattr(self.instance, "location", ""))
         job_type = attrs.get("job_type", getattr(self.instance, "job_type", ""))
+        # kept in sync with models.Alert.clean() — same invariant, enforced separately for the admin-form path.
         if not (keywords or location or job_type):
             raise serializers.ValidationError(
                 "At least one of keywords, location, or job_type is required."

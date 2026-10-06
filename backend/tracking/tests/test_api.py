@@ -55,6 +55,39 @@ class AlertAPITests(APITestCase):
         response = self.client.get(f"/api/alerts/{alert.id}/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_create_persists_notify_method_frequency_and_digest_time(self):
+        response = self.client.post(
+            "/api/alerts/",
+            {
+                "keywords": "backend",
+                "notify_method": "email",
+                "frequency": "daily",
+                "digest_time": "17:30",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["notify_method"], "email")
+        self.assertEqual(response.data["frequency"], "daily")
+        self.assertEqual(response.data["digest_time"], "17:30:00")
+
+    def test_patch_updates_frequency_and_digest_time(self):
+        alert = Alert.objects.create(user=self.user, keywords="backend")
+        response = self.client.patch(
+            f"/api/alerts/{alert.id}/",
+            {"frequency": "daily", "digest_time": "08:00"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        alert.refresh_from_db()
+        self.assertEqual(alert.frequency, Alert.Frequency.DAILY)
+        self.assertEqual(alert.digest_time.strftime("%H:%M"), "08:00")
+
+    def test_unauthenticated_access_is_rejected(self):
+        self.client.force_authenticate(None)
+        response = self.client.get("/api/alerts/")
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
 
 class NotificationAPITests(APITestCase):
     def setUp(self):
@@ -80,3 +113,8 @@ class NotificationAPITests(APITestCase):
         notification = Notification.objects.create(user=self.user, alert=self.alert, listing=self.listing)
         response = self.client.patch(f"/api/notifications/{notification.id}/", {"read": True}, format="json")
         self.assertEqual(response.status_code, 405)
+
+    def test_unauthenticated_access_is_rejected(self):
+        self.client.force_authenticate(None)
+        response = self.client.get("/api/notifications/")
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))

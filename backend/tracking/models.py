@@ -27,6 +27,7 @@ class Alert(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def clean(self):
+        # kept in sync with serializers.AlertSerializer.validate() — admin-form path (full_clean) vs API path (validate) each need this check independently.
         if not (self.keywords or self.location or self.job_type):
             raise ValidationError("At least one of keywords, location, or job_type is required.")
 
