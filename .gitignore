@@ -30,3 +30,6 @@ Thumbs.db
 
 # local database file
 db.sqlite3
+
+# Ignore TypeScript build cache files
+frontend/*.tsbuildinfo
