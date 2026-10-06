@@ -89,3 +89,11 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+
+
+# where @login_required sends people who aren't logged in.
+# US1.x can change this to the real login page later.
+LOGIN_URL = "/accounts/login/"
+
+# where to go after logging in, if there's no other page to go back to
+LOGIN_REDIRECT_URL = "/feed/"
