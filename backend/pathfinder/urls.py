@@ -1,0 +1,25 @@
+from django.contrib import admin
+from django.urls import path
+from django.http import JsonResponse
+from listings import views as listing_views
+from django.contrib.auth import views as auth_views
+
+def api_root(request):
+    return JsonResponse({"status": "ok", "service": "pathfinder-api"})
+
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api/", api_root),
+    # temporary login page using Django's built in LoginView (works for any user, not just staff)
+    path(
+        "accounts/login/",
+        auth_views.LoginView.as_view(template_name="listings/login.html"),
+        name="login",
+    ),
+    #Run feed view when someone visits the site
+    path("feed/", listing_views.feed),
+    # clicking an empty bookmark saves it, clicking a filled one removes it
+    path("feed/<int:listing_id>/save/", listing_views.save_bookmark),
+    path("feed/<int:listing_id>/remove/", listing_views.remove_bookmark),
+]
