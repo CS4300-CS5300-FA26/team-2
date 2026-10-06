@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from django.http import JsonResponse
 from listings import views as listing_views
 from django.contrib.auth import views as auth_views
@@ -11,6 +11,7 @@ def api_root(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", api_root),
+    path("api/", include("tracking.urls")),
     # temporary login page using Django's built in LoginView (works for any user, not just staff)
     path(
         "accounts/login/",
