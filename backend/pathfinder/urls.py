@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.http import JsonResponse
 from listings import views as listing_views
+from accounts import views as account_views
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -20,6 +21,8 @@ urlpatterns = [
         name="login",
     ),
     path("resumes/", include("resumes.urls")),
+    # sign-up page (US1.1)
+    path("accounts/signup/", account_views.signup, name="signup"),
     #Run feed view when someone visits the site
     path("feed/", listing_views.feed),
     # clicking an empty bookmark saves it, clicking a filled one removes it
