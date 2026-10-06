@@ -27,3 +27,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local Django files
+backend/db.sqlite3
+backend/media/
