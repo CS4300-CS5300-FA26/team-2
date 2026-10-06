@@ -8,7 +8,7 @@ WORKDIR /app
 COPY frontend/package*.json ./
 
 # Install the React project dependencies
-RUN npm install
+RUN npm ci
 
 # Copy the React source code into the build container
 COPY frontend/ ./
