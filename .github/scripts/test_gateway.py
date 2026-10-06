@@ -74,7 +74,7 @@ try:
             home_page = get_page("/")
             api_page = get_page("/api/")
             break
-        except URLError:
+        except (URLError, OSError):
             time.sleep(1)
     else:
         raise AssertionError("Gateway did not start")
