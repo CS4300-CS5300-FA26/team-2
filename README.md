@@ -25,6 +25,7 @@ This document records where and when team members used AI assistance: the tool u
 | Nicole | Claude (Anthropic) |Generating way to word the Gherkin Acceptance Criterias | Used as a starting point, then adjusted by the team |
 | Riley | Claude (Anthropic) | Templating [specify: e.g., the document/section structure or formatting and grammar] | Used as a starting template, then filled in and edited by the team |
 | Nicole Vance | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
+| Seth | Codex (OpenAI) | Deployment planning, Railway configuration, Docker/Nginx gateway, GitHub Actions CI, and gateway test troubleshooting | Used for guidance and initial code suggestions, then I reviewed, tested, and committed the final work ||
 | [Add more as needed] | | | |
 
 ## Notes
