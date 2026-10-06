@@ -30,3 +30,6 @@ Thumbs.db
 
 # local database file
 db.sqlite3
+
+# venv
+cs4300
