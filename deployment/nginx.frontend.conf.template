@@ -15,7 +15,7 @@ server {
 
     # Send API requests to the private Django backend service
     location /api/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -29,7 +29,7 @@ server {
 
     # Send Django admin pages to the private backend service
     location /admin/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -43,7 +43,7 @@ server {
 
     # Send Django account pages such as login pages to the private backend
     location /accounts/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -57,7 +57,7 @@ server {
 
     # Send the current Django feed page to the private backend
     location /feed/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -66,7 +66,7 @@ server {
 
     # Send resume upload pages to the private backend service
     location /resumes/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -75,7 +75,7 @@ server {
 
     # Forward Django static files such as admin CSS and JavaScript
     location /static/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -84,7 +84,7 @@ server {
 
     # Forward uploaded files when resume storage is added later
     location /media/ {
-        proxy_pass http://${BACKEND_HOST}:8080;
+        proxy_pass http://${BACKEND_HOST}:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
