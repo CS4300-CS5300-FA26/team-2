@@ -14,6 +14,7 @@ def api_root(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", api_root),
+    path("api/", include("tracking.urls")),
     # temporary login page using Django's built in LoginView (works for any user, not just staff)
     path(
         "accounts/login/",

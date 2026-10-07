@@ -9,6 +9,7 @@ npm-debug.log*
 dist/
 build/
 .next/
+*.tsbuildinfo
 
 # Python
 __pycache__/
@@ -31,7 +32,9 @@ Thumbs.db
 # Local Django files
 db.sqlite3
 backend/db.sqlite3
-backend/media/
+
+# venv
+cs4300
 
 # Ignore TypeScript build cache files
 frontend/*.tsbuildinfo
