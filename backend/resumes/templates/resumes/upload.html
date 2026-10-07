@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upload Resume</title>
+</head>
+<body>
+    <main>
+        <p><a href="/feed/">Back to feed</a></p>
+
+        <h1>Upload Resume</h1>
+        <p>Upload a PDF, DOC, or DOCX file no larger than 5 MB</p>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Upload resume</button>
+        </form>
+
+        <section>
+            <h2>Your uploaded resumes</h2>
+
+            {% if resumes %}
+                <ul>
+                    {% for resume in resumes %}
+                        <li>
+                            <a href="{{ resume.file.url }}">{{ resume.file.name }}</a>
+                            <span>Uploaded {{ resume.uploaded_at|date:"M j, Y, g:i a" }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>You have not uploaded a resume yet</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
