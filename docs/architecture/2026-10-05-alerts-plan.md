@@ -620,11 +620,7 @@ logger = logging.getLogger(__name__)
 
 
 def match_alert(alert):
-    """Return Listings not yet notified for this alert, filtered by keywords.
-
-    ponytail: location/job_type matching deferred, wire in once Listing
-    gains those fields (see docs/architecture/2026-10-05-alerts-design.md).
-    """
+    """Return Listings not yet notified for this alert, filtered by keywords."""
     last_notified = (
         Notification.objects.filter(alert=alert).order_by("-listing__created_at").first()
     )
@@ -755,11 +751,7 @@ logger = logging.getLogger(__name__)
 
 
 def match_alert(alert):
-    """Return Listings not yet notified for this alert, filtered by keywords.
-
-    ponytail: location/job_type matching deferred, wire in once Listing
-    gains those fields (see docs/architecture/2026-10-05-alerts-design.md).
-    """
+    """Return Listings not yet notified for this alert, filtered by keywords."""
     last_notified = (
         Notification.objects.filter(alert=alert).order_by("-listing__created_at").first()
     )

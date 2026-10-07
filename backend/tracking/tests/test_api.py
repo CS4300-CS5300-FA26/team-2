@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APIClient, APITestCase
 
 from listings.models import Listing
 from tracking.models import Alert, Notification
@@ -87,6 +87,30 @@ class AlertAPITests(APITestCase):
         self.client.force_authenticate(None)
         response = self.client.get("/api/alerts/")
         self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+
+class AlertCSRFTests(APITestCase):
+    """Session-authenticated requests, as the browser makes them.
+
+    force_authenticate skips CSRF, so the tests above can't catch a missing token.
+    """
+
+    def setUp(self):
+        User.objects.create_user(username="e", password="pw")
+        self.client = APIClient(enforce_csrf_checks=True)
+        self.client.login(username="e", password="pw")
+
+    def test_create_without_csrf_token_is_rejected(self):
+        response = self.client.post("/api/alerts/", {"keywords": "backend"}, format="json")
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_list_sets_csrf_cookie_that_allows_create(self):
+        self.client.get("/api/alerts/")
+        token = self.client.cookies["csrftoken"].value
+        response = self.client.post(
+            "/api/alerts/", {"keywords": "backend"}, format="json", HTTP_X_CSRFTOKEN=token
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 
 class NotificationAPITests(APITestCase):

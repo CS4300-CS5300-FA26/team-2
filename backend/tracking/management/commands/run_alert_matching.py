@@ -14,10 +14,8 @@ logger = logging.getLogger(__name__)
 def match_alert(alert):
     """Return Listings not yet notified for this alert, filtered by keywords.
 
-    ponytail: location/job_type matching deferred, wire in once Listing
-    gains those fields (see docs/architecture/2026-10-05-alerts-design.md).
-    Until then, an alert with no keywords matches nothing rather than
-    matching every listing (location/job_type can't be verified yet).
+    Listing has no location/job_type fields yet, so an alert with no
+    keywords matches nothing rather than matching every listing.
     """
     if not alert.keywords:
         return []

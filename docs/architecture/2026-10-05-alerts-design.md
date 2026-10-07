@@ -75,7 +75,7 @@ in the DRF serializer).
 broker infra is unneeded for an hourly batch job).
 
 1. For each `Alert` with `is_active=True`:
-   - Build a `Listing` queryset: `created_at > alert's last-matched listing's created_at` (track via most recent `Notification.listing.created_at` for that alert, or `alert.created_at` if none yet), filtered by `icontains` on `keywords` against `title`/`company`. `location`/`job_type` are stored but not filtered on yet (`Listing` has no such fields) — `ponytail: location/job_type matching deferred, wire in once Listing gains those fields`.
+   - Build a `Listing` queryset: `created_at > alert's last-matched listing's created_at` (track via most recent `Notification.listing.created_at` for that alert, or `alert.created_at` if none yet), filtered by `icontains` on `keywords` against `title`/`company`. `location`/`job_type` are stored but not filtered on yet (`Listing` has no such fields).
    - Create a `Notification` row (read=False, emailed_at=None) per new match.
    - Wrap each alert's processing in try/except; log and continue on error so one bad alert doesn't abort the run.
 2. Email delivery pass, only for `notify_method=email`:

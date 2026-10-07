@@ -26,10 +26,24 @@ export type AlertInput = Partial<
   Pick<Alert, "keywords" | "location" | "job_type" | "notify_method" | "frequency" | "digest_time" | "is_active">
 >;
 
+const SAFE_METHODS = ["GET", "HEAD", "OPTIONS", "TRACE"];
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  // DRF's SessionAuthentication rejects unsafe requests from logged-in users without this header.
+  const csrfToken = SAFE_METHODS.includes(method) ? null : getCookie("csrftoken");
   const response = await fetch(path, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
+      ...init?.headers,
+    },
     credentials: "same-origin",
   });
   if (!response.ok) {

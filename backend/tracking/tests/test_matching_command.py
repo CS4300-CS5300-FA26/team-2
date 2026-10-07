@@ -64,9 +64,8 @@ class RunAlertMatchingTests(TestCase):
         self.assertEqual(Notification.objects.filter(alert=good_alert, listing=listing).count(), 1)
 
     def test_widened_alert_rematches_previously_unmatched_older_listing(self):
-        # regression test for the cutoff-bug: a Listing created before another
-        # Listing that later got notified must still be re-evaluated once the
-        # alert's criteria widen to match it.
+        # A Listing created before another Listing that later got notified must
+        # still be re-evaluated once the alert's criteria widen to match it.
         alert = Alert.objects.create(user=self.user, keywords="backend")
         old_listing = Listing.objects.create(title="Frontend Intern", company="Acme")  # no match yet
         new_listing = Listing.objects.create(title="Backend Intern", company="Acme")  # matches, becomes "latest"
