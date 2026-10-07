@@ -1,0 +1,98 @@
+# This web server gives users one public website address
+server {
+    # Railway sends website traffic to this port
+    listen 80;
+
+    # Accept requests for the Railway domain assigned to this service
+    server_name _;
+
+    # Match the five megabyte resume upload limit in Django
+    client_max_body_size 5m;
+
+    # Serve the React files copied into this folder by the Docker build
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Send API requests to the private Django backend service
+    location /api/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Redirect the admin shortcut to Django's normal admin address
+    location = /admin {
+        return 301 /admin/;
+    }
+
+    # Send Django admin pages to the private backend service
+    location /admin/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Redirect the account shortcut to Django's normal account address
+    location = /accounts {
+        return 301 /accounts/;
+    }
+
+    # Send Django account pages such as login pages to the private backend
+    location /accounts/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Redirect the feed shortcut to Django's normal feed address
+    location = /feed {
+        return 301 /feed/;
+    }
+
+    # Send the current Django feed page to the private backend
+    location /feed/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Send resume upload pages to the private backend service
+    location /resumes/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Forward Django static files such as admin CSS and JavaScript
+    location /static/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Forward uploaded files when resume storage is added later
+    location /media/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Serve React files and return React's page for future frontend routes
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

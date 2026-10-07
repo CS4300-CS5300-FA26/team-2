@@ -32,3 +32,6 @@ Thumbs.db
 db.sqlite3
 backend/db.sqlite3
 backend/media/
+
+# Ignore TypeScript build cache files
+frontend/*.tsbuildinfo
