@@ -8,6 +8,7 @@ DEBUG = False
 SECRET_KEY = env("SECRET_KEY")  # raises if missing — no insecure fallback in prod
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[]) 
 
 # Without SMTP config, alert emails are written to the server log instead of
 # sent, so a deploy missing these variables still boots. In-app alerts are unaffected.
@@ -27,4 +28,4 @@ else:
         "(see README: Deployment settings)."
     )
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # Trust the HTTPS header sent by our Railway Nginx gateway
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") # Trust the HTTPS header sent by our Railway Nginx gateway
