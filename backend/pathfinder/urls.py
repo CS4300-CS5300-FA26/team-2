@@ -6,6 +6,7 @@ from accounts import views as account_views
 from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
+from pathfinder.health import healthz, livez
 
 def api_root(request):
     return JsonResponse({"status": "ok", "service": "pathfinder-api"})
@@ -13,6 +14,8 @@ def api_root(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("livez/", livez),
+    path("healthz/", healthz),
     path("api/", api_root),
     path("api/", include("tracking.urls")),
     # temporary login page using Django's built in LoginView (works for any user, not just staff)

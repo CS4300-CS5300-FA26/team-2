@@ -1,0 +1,124 @@
+# App Service replaces AKS/SWA (see the ADR update): both the Django API
+# and the React static build deploy here as plain source (Oryx build),
+# no Dockerfile/ACR in this path. backend/Dockerfile and
+# deployment/frontend.Dockerfile stay for local docker-compose dev only.
+
+resource "azurerm_service_plan" "main" {
+  name                = "asp-${var.project_name}-${var.environment}"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  os_type             = "Linux"
+
+  # Basic B1 (~$13.14/mo): cheapest tier with always_on, which the 24/7
+  # uptime target requires. worker_count is the App Service Plan's
+  # instance count; it's per-plan, not per-app, so both Web Apps below
+  # share these 2 instances.
+  sku_name     = "B1"
+  worker_count = 2
+}
+
+resource "azurerm_linux_web_app" "backend" {
+  name                = "app-${var.project_name}-${var.environment}-api"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  service_plan_id     = azurerm_service_plan.main.id
+
+  # VNet Integration via the delegated subnet in network.tf, so outbound
+  # traffic from Django can reach the private Postgres server, Key Vault,
+  # and Storage over the VNet instead of the public internet.
+  virtual_network_subnet_id = azurerm_subnet.app_service.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  site_config {
+    # Required for the health check below and for a 24/7 uptime target;
+    # only available Basic tier and up (B1, already selected above).
+    always_on = true
+
+    # Route ALL outbound traffic through the VNet integration, not just
+    # RFC1918 ranges, so calls to Key Vault/Storage's public endpoints
+    # (gated by VNet-scoped network ACLs, see keyvault.tf/storage.tf) use
+    # the VNet path too, not just Postgres's private IP.
+    vnet_route_all_enabled = true
+
+    health_check_path                 = "/healthz/"
+    health_check_eviction_time_in_min = 2
+
+    application_stack {
+      # Matches backend/requirements.txt's Django 5.1 (requires Python
+      # 3.10+); 3.12 matches backend/Dockerfile's base image.
+      python_version = "3.12"
+    }
+
+    # Oryx's default Python startup guesses at an entrypoint; pin the
+    # real one (same gunicorn invocation as backend/entrypoint.sh, minus
+    # the migrate/collectstatic steps, which belong in a deploy step, not
+    # app startup).
+    app_command_line = "gunicorn pathfinder.wsgi:application --bind=0.0.0.0:8000"
+  }
+
+  app_settings = {
+    # Oryx build on source deploy; without this a zip/source deploy just
+    # copies files instead of running pip install.
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    DJANGO_SETTINGS_MODULE         = "pathfinder.settings.prod"
+
+    # App Service's native Key Vault reference syntax: resolved at
+    # runtime using the Web App's own identity (SystemAssigned above),
+    # which keyvault.tf grants Key Vault Secrets User. Not the CSI driver
+    # pattern, that was AKS-specific.
+    SECRET_KEY   = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=SECRET-KEY)"
+    DATABASE_URL = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=DATABASE-URL)"
+
+    # Media storage account/container for prod.py's AzureStorage backend.
+    # Not secrets (auth is managed identity, not a key), so plain app
+    # settings rather than Key Vault references.
+    AZURE_STORAGE_ACCOUNT_NAME = azurerm_storage_account.media.name
+    AZURE_STORAGE_CONTAINER    = azurerm_storage_container.media.name
+
+    # prod.py's Django security settings: without these the app 500s on
+    # every request (DisallowedHost) or rejects admin/API POSTs (CSRF).
+    # Built from the name below rather than self-referencing
+    # default_hostname (Terraform forbids a resource referring to
+    # itself). azurewebsites.net hostnames only for now; path-finders.app
+    # joins this list once DNS is live (deferred, see CHECKPOINT).
+    ALLOWED_HOSTS        = "app-${var.project_name}-${var.environment}-api.azurewebsites.net"
+    CSRF_TRUSTED_ORIGINS = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net"
+
+    # Oryx auto-runs `manage.py collectstatic` when manage.py sits at the
+    # deploy root, which it should here, but that depends on however the
+    # (not-yet-written) deploy workflow packages this repo. Explicit and
+    # idempotent, so it's cheap insurance either way.
+    POST_BUILD_COMMAND = "python manage.py collectstatic --noinput"
+  }
+}
+
+resource "azurerm_linux_web_app" "frontend" {
+  name                = "app-${var.project_name}-${var.environment}-web"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  service_plan_id     = azurerm_service_plan.main.id
+
+  site_config {
+    always_on = true
+
+    application_stack {
+      # Node is only needed as the Oryx build runtime (tsc -b && vite
+      # build, per frontend/package.json); the result is static files.
+      node_version = "20-lts"
+    }
+
+    # frontend/package.json's build script is "tsc -b && vite build",
+    # and Vite's default output directory is "dist" (not overridden in
+    # vite.config). pm2 is bundled in App Service's Node Linux image;
+    # this is Microsoft's documented pattern for serving a static SPA
+    # build without adding a dependency for it.
+    app_command_line = "pm2 serve /home/site/wwwroot/dist --no-daemon --spa"
+  }
+
+  app_settings = {
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+  }
+}

@@ -13,6 +13,16 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # k8s readiness/liveness probe target and the AKS Load Balancer's
+    # health probe. Answered locally, never proxied, so it still returns
+    # 200 even if the Django backend is unreachable, this checks that
+    # nginx itself is up, not the whole stack.
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+
     # Send API requests to the private Django backend service
     location /api/ {
         proxy_pass http://${BACKEND_HOST}:8000;
