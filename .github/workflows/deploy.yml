@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Raw source, not a pre-built artifact. SCM_DO_BUILD_DURING_DEPLOYMENT
       # is set on the Web App (infra/terraform/app_service.tf), so Oryx
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Raw source, same reasoning as the backend: Oryx runs npm install
       # and the Vite build server-side on the Web App.
@@ -61,3 +61,23 @@ jobs:
           app-name: app-pathfinder-prod-web
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
           package: frontend-deploy.zip
+
+  smoke-test:
+    name: Smoke test live deployment
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      # Both apps restart on deploy (Oryx build + worker swap), so a cold
+      # instance can 503/timeout for a bit after azure/webapps-deploy
+      # returns success. Retry instead of treating that as a failure.
+      - name: Backend liveness (/livez/)
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-api.azurewebsites.net/livez/
+
+      - name: Backend readiness (/healthz/, checks DB)
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-api.azurewebsites.net/healthz/
+
+      - name: CSRF bootstrap endpoint reachable
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-api.azurewebsites.net/api/csrf/
+
+      - name: Frontend serves the SPA
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-web.azurewebsites.net/

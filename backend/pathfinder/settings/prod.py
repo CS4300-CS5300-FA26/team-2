@@ -10,7 +10,18 @@ DEBUG = False
 SECRET_KEY = env("SECRET_KEY")  # raises if missing, no insecure fallback in prod
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[]) 
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Frontend and backend are separate App Service origins (no shared nginx
+# gateway in this deploy), so the session/CSRF cookies the frontend's fetch
+# calls rely on have to be sent cross-site. CORS_ALLOW_CREDENTIALS plus
+# SameSite=None/Secure is what makes the browser actually attach them.
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
 
 # Without SMTP config, alert emails are written to the server log instead of
 # sent, so a deploy missing these variables still boots. In-app alerts are unaffected.

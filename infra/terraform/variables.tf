@@ -15,3 +15,9 @@ variable "environment" {
   type        = string
   default     = "prod"
 }
+
+variable "frontend_custom_domain" {
+  description = "Apex custom domain bound to the frontend Web App. The registrar's A/TXT records (see custom_domain.tf's outputs) must already resolve before this can apply."
+  type        = string
+  default     = "path-finders.app"
+}

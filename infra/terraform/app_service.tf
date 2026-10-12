@@ -53,10 +53,14 @@ resource "azurerm_linux_web_app" "backend" {
     }
 
     # Oryx's default Python startup guesses at an entrypoint; pin the
-    # real one (same gunicorn invocation as backend/entrypoint.sh, minus
-    # the migrate/collectstatic steps, which belong in a deploy step, not
-    # app startup).
-    app_command_line = "gunicorn pathfinder.wsgi:application --bind=0.0.0.0:8000"
+    # real one. Unlike backend/entrypoint.sh (Docker-only), migrate runs
+    # inline here -- there's no separate deploy-time hook in the App
+    # Service source-deploy path, so startup is the only place left.
+    # worker_count=2 means both instances can race this on a simultaneous
+    # cold start; Django migrations aren't lock-protected against that,
+    # but at this scale (small, infrequent deploys) the risk is accepted
+    # rather than engineered around.
+    app_command_line = "python manage.py migrate --noinput && gunicorn pathfinder.wsgi:application --bind=0.0.0.0:8000"
   }
 
   app_settings = {
@@ -82,10 +86,18 @@ resource "azurerm_linux_web_app" "backend" {
     # every request (DisallowedHost) or rejects admin/API POSTs (CSRF).
     # Built from the name below rather than self-referencing
     # default_hostname (Terraform forbids a resource referring to
-    # itself). azurewebsites.net hostnames only for now; path-finders.app
-    # joins this list once DNS is live (deferred, see CHECKPOINT).
+    # itself). ALLOWED_HOSTS is just this app's own Host header, so it
+    # never needs the frontend's domain; CSRF_TRUSTED_ORIGINS does,
+    # since that's the cross-origin caller's Origin once the frontend
+    # moves off azurewebsites.net (custom_domain.tf).
     ALLOWED_HOSTS        = "app-${var.project_name}-${var.environment}-api.azurewebsites.net"
-    CSRF_TRUSTED_ORIGINS = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net"
+    CSRF_TRUSTED_ORIGINS = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net,https://${var.frontend_custom_domain}"
+
+    # Separate origins, no shared gateway in this deploy -- the frontend's
+    # fetch calls need CORS to even reach this API. Covers both the custom
+    # domain and the frontend's own azurewebsites.net hostname (useful if
+    # the domain is ever unbound/changed).
+    CORS_ALLOWED_ORIGINS = "https://${var.frontend_custom_domain},https://app-${var.project_name}-${var.environment}-web.azurewebsites.net"
 
     # Oryx auto-runs `manage.py collectstatic` when manage.py sits at the
     # deploy root, which it should here, but that depends on however the
@@ -120,5 +132,11 @@ resource "azurerm_linux_web_app" "frontend" {
 
   app_settings = {
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+
+    # Vite inlines import.meta.env.VITE_* at build time (Oryx's `npm run
+    # build` step), not at runtime -- App Settings are exposed as env vars
+    # to that build container, which is the only reason this works without
+    # a .env file in the repo.
+    VITE_API_BASE_URL = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net"
   }
 }
