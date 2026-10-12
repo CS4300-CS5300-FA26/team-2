@@ -126,3 +126,77 @@ class FeedPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Software Intern")
+
+#Sprint 1
+# Tests for the Saved Jobs page
+# The page lives at /saved/ and should show only MY bookmarked jobs
+class SavedJobsPageTests(TestCase):
+
+    # setUp runs before every test, so each test starts with the same fake data
+    def setUp(self):
+        # make two fake users: me and another person
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
+        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
+
+        # make two fake jobs
+        self.saved_job = Listing.objects.create(title="Software Intern", company="Acme")
+        self.unsaved_job = Listing.objects.create(title="Data Analyst", company="Globex")
+
+        # I bookmark ONLY the first job
+        Bookmark.objects.create(user=self.user, listing=self.saved_job)
+
+
+    # TEST 1: I should see the job I saved
+    def test_shows_my_saved_jobs(self):
+        # log in as me
+        self.client.force_login(self.user)
+
+        # open the saved jobs page
+        response = self.client.get("/saved/")
+
+        # 200 = the page loaded OK
+        self.assertEqual(response.status_code, 200)
+
+        # the job I saved should be on the page
+        self.assertContains(response, "Software Intern")
+
+
+    # TEST 2: I should NOT see a job I didn't save
+    def test_does_not_show_unsaved_jobs(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/saved/")
+
+        # assertNotContains = make sure this text is NOT on the page
+        self.assertNotContains(response, "Data Analyst")
+
+
+    # TEST 3: I should NOT see jobs that other people saved
+    def test_does_not_show_other_users_bookmarks(self):
+        # the other user saves the Data Analyst job (I never saved it)
+        Bookmark.objects.create(user=self.other_user, listing=self.unsaved_job)
+
+        # log in as me, not them
+        self.client.force_login(self.user)
+        response = self.client.get("/saved/")
+
+        # their bookmark should not show up on MY page
+        self.assertNotContains(response, "Data Analyst")
+
+
+    # TEST 4: if I saved nothing, show a message instead of a blank page
+    def test_shows_message_when_nothing_saved(self):
+        # the other user has no bookmarks yet, so log in as them
+        self.client.force_login(self.other_user)
+        response = self.client.get("/saved/")
+
+        # this exact message should be on the page
+        self.assertContains(response, "You haven't saved any jobs yet.")
+
+
+    # TEST 5: you have to be logged in to see saved jobs
+    def test_saved_page_needs_login(self):
+        # no login here on purpose
+        response = self.client.get("/saved/")
+
+        # 302 = Django sent us to the login page instead
+        self.assertEqual(response.status_code, 302)
