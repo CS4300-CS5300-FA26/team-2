@@ -38,3 +38,6 @@ cs4300
 
 # Ignore TypeScript build cache files
 frontend/*.tsbuildinfo
+
+# Coverage results (made by running coverage)
+.coverage
