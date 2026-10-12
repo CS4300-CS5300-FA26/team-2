@@ -126,7 +126,7 @@ class FeedPageTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Software Intern")
-
+    # Test 12: 
     # the feed should have a link to the Saved Jobs page
     def test_feed_has_link_to_saved_jobs(self):
         self.client.force_login(self.user)
@@ -134,6 +134,12 @@ class FeedPageTests(TestCase):
 
         # check the link is on the page
         self.assertContains(response, 'href="/saved/"')
+    
+    # Test 13: To get model.py to 100% in Coverage
+    # a listing should show as "Title at Company" (used on the admin page)
+    def test_listing_str(self):
+        self.assertEqual(str(self.listing), "Software Intern at Lockheed")
+
 #Sprint 1
 # Tests for the Saved Jobs page
 # The page lives at /saved/ and should show only MY bookmarked jobs
