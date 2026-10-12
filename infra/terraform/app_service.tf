@@ -127,7 +127,12 @@ resource "azurerm_linux_web_app" "frontend" {
     # vite.config). pm2 is bundled in App Service's Node Linux image;
     # this is Microsoft's documented pattern for serving a static SPA
     # build without adding a dependency for it.
-    app_command_line = "pm2 serve /home/site/wwwroot/dist --no-daemon --spa"
+    #
+    # App Service's startup probe checks port 8080 ($PORT) specifically;
+    # pm2 serve without an explicit port picks its own default, so the
+    # probe sees nothing listening and kills the container after 230s
+    # ("No listening ports were detected") even though pm2 is actually up.
+    app_command_line = "pm2 serve /home/site/wwwroot/dist $PORT --no-daemon --spa"
   }
 
   app_settings = {
