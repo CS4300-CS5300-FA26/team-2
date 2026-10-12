@@ -29,6 +29,8 @@ urlpatterns = [
     # clicking an empty bookmark saves it, clicking a filled one removes it
     path("feed/<int:listing_id>/save/", listing_views.save_bookmark),
     path("feed/<int:listing_id>/remove/", listing_views.remove_bookmark),
+    #When someone goes to /saved/, Django runs the saved_jobs function to show their saved jobs page.
+    path("saved/", listing_views.saved_jobs),
 ]
 
 if settings.DEBUG:
