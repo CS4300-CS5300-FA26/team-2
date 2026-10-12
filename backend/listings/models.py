@@ -1,4 +1,4 @@
-from django.db import models  # noqa: F401
+from django.db import models
 from django.conf import settings
 
 # Listing type that inherits from models.Model
