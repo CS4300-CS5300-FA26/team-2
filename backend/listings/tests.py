@@ -127,6 +127,13 @@ class FeedPageTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Software Intern")
 
+    # the feed should have a link to the Saved Jobs page
+    def test_feed_has_link_to_saved_jobs(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/feed/")
+
+        # check the link is on the page
+        self.assertContains(response, 'href="/saved/"')
 #Sprint 1
 # Tests for the Saved Jobs page
 # The page lives at /saved/ and should show only MY bookmarked jobs
