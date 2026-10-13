@@ -82,6 +82,10 @@ resource "azurerm_linux_web_app" "backend" {
     SECRET_KEY   = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=SECRET-KEY)"
     DATABASE_URL = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=DATABASE-URL)"
 
+    # prod.py only calls sentry_sdk.init() if this is non-empty, so this
+    # is a no-op until the secret below is actually set.
+    SENTRY_DSN = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=SENTRY-DSN)"
+
     # Media storage account/container for prod.py's AzureStorage backend.
     # Not secrets (auth is managed identity, not a key), so plain app
     # settings rather than Key Vault references.

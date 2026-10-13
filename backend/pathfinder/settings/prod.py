@@ -65,8 +65,8 @@ STORAGES = {
 }
 
 # Sentry: only initialize with a real DSN (same non-empty-guard pattern as
-# EMAIL_HOST above). No DSN exists yet -- student-pack account isn't wired
-# up -- so this is a no-op until SENTRY_DSN is set.
+# EMAIL_HOST above). Set via Key Vault (infra/terraform/app_service.tf's
+# SENTRY_DSN app setting), so this is a no-op until that secret exists.
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:
     import sentry_sdk
@@ -77,6 +77,9 @@ if SENTRY_DSN:
         integrations=[DjangoIntegration()],
         traces_sample_rate=0.1,
         send_default_pii=False,
+        environment="production",
+        # Ships stdlib logging.warning()+ as Sentry Logs, no extra code.
+        enable_logs=True,
     )
 
 # Honeybadger cron check-in ID for run_alert_matching (see that command for
