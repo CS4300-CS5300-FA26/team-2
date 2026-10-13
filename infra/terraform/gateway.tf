@@ -37,6 +37,11 @@ resource "azurerm_linux_web_app" "gateway" {
   location            = azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.main.id
 
+  # PR #53 review: reject plain HTTP instead of silently serving it. TLS
+  # termination happens at the App Service edge regardless, this just
+  # stops the platform from also accepting the unencrypted port 80 path.
+  https_only = true
+
   identity {
     type = "SystemAssigned"
   }

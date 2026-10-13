@@ -26,6 +26,9 @@ resource "azurerm_linux_web_app" "backend" {
   location            = azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.main.id
 
+  # PR #53 review: reject plain HTTP instead of silently serving it.
+  https_only = true
+
   # VNet Integration via the delegated subnet in network.tf, so outbound
   # traffic from Django can reach the private Postgres server, Key Vault,
   # and Storage over the VNet instead of the public internet.
@@ -93,8 +96,12 @@ resource "azurerm_linux_web_app" "backend" {
     # never needs the frontend's domain; CSRF_TRUSTED_ORIGINS does,
     # since that's the cross-origin caller's Origin once the frontend
     # moves off azurewebsites.net (custom_domain.tf).
-    ALLOWED_HOSTS        = "app-${var.project_name}-${var.environment}-api.azurewebsites.net"
-    CSRF_TRUSTED_ORIGINS = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net,https://${var.frontend_custom_domain}"
+    ALLOWED_HOSTS = "app-${var.project_name}-${var.environment}-api.azurewebsites.net"
+
+    # PR #53 review: also needs the frontend's own azurewebsites.net
+    # hostname, not just the custom domain -- direct testing against
+    # that URL (bypassing the gateway) 403s on any POST without it.
+    CSRF_TRUSTED_ORIGINS = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net,https://app-${var.project_name}-${var.environment}-web.azurewebsites.net,https://${var.frontend_custom_domain}"
 
     # Separate origins, no shared gateway in this deploy -- the frontend's
     # fetch calls need CORS to even reach this API. Covers both the custom
@@ -115,6 +122,9 @@ resource "azurerm_linux_web_app" "frontend" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   service_plan_id     = azurerm_service_plan.main.id
+
+  # PR #53 review: reject plain HTTP instead of silently serving it.
+  https_only = true
 
   site_config {
     always_on = true
