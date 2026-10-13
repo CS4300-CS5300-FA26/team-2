@@ -1,5 +1,7 @@
 import logging
+import urllib.request
 
+from django.conf import settings
 from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
 from django.db.models import Q
@@ -9,6 +11,23 @@ from listings.models import Listing
 from tracking.models import Alert, Notification
 
 logger = logging.getLogger(__name__)
+
+
+def ping_honeybadger_checkin():
+    """Notify Honeybadger this scheduled job completed, if a check-in ID is configured.
+
+    Only pings when HONEYBADGER_CHECKIN_ID is set (same non-empty-guard
+    pattern as SENTRY_DSN/EMAIL_HOST) -- the account doesn't have one yet.
+    Uses stdlib urllib rather than the honeybadger package: this is a
+    single fire-and-forget GET, not worth a dependency.
+    """
+    checkin_id = getattr(settings, "HONEYBADGER_CHECKIN_ID", "")
+    if not checkin_id:
+        return
+    try:
+        urllib.request.urlopen(f"https://api.honeybadger.io/v1/check_in/{checkin_id}", timeout=10)
+    except Exception:
+        logger.exception("Honeybadger check-in ping failed")
 
 
 def match_alert(alert):
@@ -60,6 +79,8 @@ class Command(BaseCommand):
                     self._send_digest(alert, now)
             except Exception:
                 logger.exception("Email send failed for alert id=%s", alert.id)
+
+        ping_honeybadger_checkin()
 
     def _send_instant(self, alert, now):
         pending = Notification.objects.filter(alert=alert, emailed_at__isnull=True)

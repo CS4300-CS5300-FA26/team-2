@@ -1,0 +1,54 @@
+# Single public origin in front of the frontend and backend App Services,
+# the way Railway's one nginx container did before the AKS/App Service
+# split put them on separate azurewebsites.net origins. FRONTEND_HOST and
+# BACKEND_HOST are app settings (infra/terraform/gateway.tf) resolved by
+# nginx's envsubst entrypoint (built into nginx:alpine) at container start.
+server {
+    listen 80;
+    server_name _;
+
+    # Match the five megabyte resume upload limit in Django.
+    client_max_body_size 5m;
+
+    # App Service hostnames aren't static IPs and can rotate, so nginx
+    # needs to re-resolve them rather than caching one at startup.
+    # 168.63.129.16 is Azure's own internal DNS resolver, reachable from
+    # any App Service/VNet without extra config.
+    resolver 168.63.129.16 valid=10s;
+
+    # Answered locally, never proxied: this checks the gateway container
+    # itself is up, not the apps behind it (App Service's own startup
+    # probe target, same role server-side as the old AKS readiness probe).
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Everything Django serves server-side: API, admin, the legacy
+    # templated account/feed/resume pages, and Django's own static/media.
+    # proxy_ssl_server_name is required for SNI since BACKEND_HOST is a
+    # variable, not a literal nginx resolves once at config-load time.
+    location ~ ^/(api|admin|accounts|feed|resumes|static|media)/ {
+        set $backend https://${BACKEND_HOST};
+        proxy_pass $backend;
+        proxy_ssl_server_name on;
+        proxy_set_header Host ${BACKEND_HOST};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # Everything else goes to the React SPA's own App Service, which
+    # builds and serves it (infra/terraform/app_service.tf) -- this
+    # gateway doesn't bundle or build the frontend itself.
+    location / {
+        set $frontend https://${FRONTEND_HOST};
+        proxy_pass $frontend;
+        proxy_ssl_server_name on;
+        proxy_set_header Host ${FRONTEND_HOST};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
