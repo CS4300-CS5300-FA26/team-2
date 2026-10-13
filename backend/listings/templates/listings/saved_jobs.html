@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pathfinder - Saved Jobs</title>
+
+    <style>
+        /* center the page and use a cleaner font */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 16px;
+        }
+
+        /* a line between each saved job */
+        .listing {
+            border-bottom: 1px solid #ddd;
+            padding: 12px 0;
+        }
+
+        .listing h3 {
+            margin: 0 0 4px 0;
+        }
+
+        .listing p {
+            margin: 0;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Saved Jobs</h1>
+
+    <!-- show each job this user saved -->
+    {% for listing in listings %}
+        <div class="listing">
+            <h3>{{ listing.title }}</h3>
+            <p>{{ listing.company }}</p>
+        </div>
+
+    <!-- if they haven't saved anything, show this instead -->
+    {% empty %}
+        <p>You haven't saved any jobs yet.</p>
+    {% endfor %}
+
+    <!-- link back to the feed -->
+    <p><a href="/feed/">Back to job feed</a></p>
+</body>
+</html>
