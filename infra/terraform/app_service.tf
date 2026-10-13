@@ -1,7 +1,10 @@
 # App Service replaces AKS/SWA (see the ADR update): both the Django API
-# and the React static build deploy here as plain source (Oryx build),
-# no Dockerfile/ACR in this path. backend/Dockerfile and
-# deployment/frontend.Dockerfile stay for local docker-compose dev only.
+# and the React static build deploy here as plain source, not a container
+# -- backend's via Oryx build, frontend's pre-built in CI (see deploy.yml;
+# Oryx's own build OOMs on this plan's B1 tier). backend/Dockerfile and
+# frontend/Dockerfile stay for local docker-compose dev only. The gateway
+# Web App (gateway.tf) in front of both is the one container-based
+# exception -- it's a thin nginx reverse proxy, not an app to Oryx-build.
 
 resource "azurerm_service_plan" "main" {
   name                = "asp-${var.project_name}-${var.environment}"
@@ -136,12 +139,19 @@ resource "azurerm_linux_web_app" "frontend" {
   }
 
   app_settings = {
-    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    # false: deploy.yml builds the frontend in the GitHub Actions runner
+    # and ships the pre-built dist/ output, not raw source. B1's 1 core/
+    # 1.75GB can't reliably run `npm install` + `tsc -b && vite build`
+    # itself -- confirmed live, Oryx's own build silently OOM-killed mid
+    # `npm install` with no error logged, just a generic failure after
+    # Kudu's watchdog gave up. With this false, Kudu does a plain file
+    # copy into wwwroot instead of invoking Oryx.
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "false"
 
-    # Vite inlines import.meta.env.VITE_* at build time (Oryx's `npm run
-    # build` step), not at runtime -- App Settings are exposed as env vars
-    # to that build container, which is the only reason this works without
-    # a .env file in the repo.
-    VITE_API_BASE_URL = "https://app-${var.project_name}-${var.environment}-api.azurewebsites.net"
+    # No VITE_API_BASE_URL app setting here: Vite inlines import.meta.env.VITE_*
+    # at build time, and that build now happens in deploy.yml's GitHub Actions
+    # runner (see SCM_DO_BUILD_DURING_DEPLOYMENT above), not in an Oryx build
+    # container on this Web App -- an App Setting here would never be read.
+    # deploy.yml sets the same value directly as a build step env var instead.
   }
 }

@@ -49,10 +49,32 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      # Raw source, same reasoning as the backend: Oryx runs npm install
-      # and the Vite build server-side on the Web App.
-      - name: Zip frontend source
-        run: zip -r ../frontend-deploy.zip . -x "node_modules/*" -x "dist/*" -x "*.git*"
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Built here, not by Oryx on the Web App: B1 (1 core/1.75GB) can't
+      # reliably run npm install + tsc -b && vite build itself -- confirmed
+      # live, it silently OOM-kills mid npm install with no error logged.
+      # SCM_DO_BUILD_DURING_DEPLOYMENT=false (infra/terraform/app_service.tf)
+      # makes Kudu do a plain file copy instead of invoking Oryx.
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      # Vite inlines import.meta.env.VITE_* at build time; this is the
+      # live backend's own azurewebsites.net hostname, not a secret.
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: https://app-pathfinder-prod-api.azurewebsites.net
+
+      - name: Zip built frontend
+        run: zip -r ../frontend-deploy.zip dist
         working-directory: frontend
 
       - name: Deploy to Azure App Service
@@ -62,14 +84,54 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
           package: frontend-deploy.zip
 
+  deploy-gateway:
+    name: Deploy gateway (nginx reverse proxy)
+    needs: checks
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-gateway
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      # ACR's built-in admin account, not a service principal -- CI
+      # pushing via a new AAD app is blocked by this tenant's policy
+      # (infra/terraform/gateway.tf). The app itself pulls at runtime via
+      # its own managed identity, not this login.
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push gateway image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployment/gateway.Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/gateway:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/gateway:${{ github.sha }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-pathfinder-prod-gateway
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_GATEWAY }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/gateway:${{ github.sha }}
+
   smoke-test:
     name: Smoke test live deployment
-    needs: [deploy-backend, deploy-frontend]
+    needs: [deploy-backend, deploy-frontend, deploy-gateway]
     runs-on: ubuntu-latest
     steps:
-      # Both apps restart on deploy (Oryx build + worker swap), so a cold
-      # instance can 503/timeout for a bit after azure/webapps-deploy
-      # returns success. Retry instead of treating that as a failure.
+      # All three apps restart on deploy, so a cold instance can
+      # 503/timeout for a bit after azure/webapps-deploy returns success.
+      # Retry instead of treating that as a failure.
       - name: Backend liveness (/livez/)
         run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-api.azurewebsites.net/livez/
 
@@ -79,5 +141,14 @@ jobs:
       - name: CSRF bootstrap endpoint reachable
         run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-api.azurewebsites.net/api/csrf/
 
-      - name: Frontend serves the SPA
+      - name: Frontend serves the SPA (direct)
         run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://app-pathfinder-prod-web.azurewebsites.net/
+
+      - name: Gateway proxies the frontend
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/
+
+      - name: Gateway proxies the backend API
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/api/csrf/
+
+      - name: Gateway proxies the legacy Django feed page
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/feed/

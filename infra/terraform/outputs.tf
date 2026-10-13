@@ -32,3 +32,12 @@ output "frontend_default_hostname" {
   description = "Public URL of the React frontend (App Service)."
   value       = azurerm_linux_web_app.frontend.default_hostname
 }
+
+output "gateway_default_hostname" {
+  description = "Public URL of the nginx gateway (App Service) -- this is what the ANAME record at the registrar should target."
+  value       = azurerm_linux_web_app.gateway.default_hostname
+}
+
+output "container_registry_login_server" {
+  value = azurerm_container_registry.main.login_server
+}
