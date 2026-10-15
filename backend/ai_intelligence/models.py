@@ -9,6 +9,3 @@ class CredibilityScore(models.Model):
     # "<name of listing> | <score>""
     def __str__(self):
         return f"{self.listing.title} at {self.listing.company} | {self.score}"
-    
-class ObjectEquivalent(models.Model):
-    field1 = models.ForeignKey()

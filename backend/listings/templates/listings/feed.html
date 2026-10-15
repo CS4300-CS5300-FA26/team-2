@@ -37,6 +37,50 @@
             color: #555;
         }
 
+        .listing-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Credscore stylings */
+        .credscore {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        .credscore--red {
+            background-color: #e57373;
+            color: #222;
+        }
+
+        .credscore--orange {
+            background-color: #ffb74d;
+            color: #222;
+        }
+
+        .credscore--yellow {
+            background-color: #fff176;
+            color: #222;
+        }
+
+        .credscore--green {
+            background-color: #81c784;
+            color: #222;
+        }
+
+        .credscore--unscored {
+            background-color: #e0e0e0;
+            color: #555;
+        }
+        /* End of credscore stylings */
+
         /* remove the default gray button box */
         .bookmark-button {
             background: none;
@@ -64,35 +108,41 @@
                 <h3>{{ listing.title }}</h3>
                 <p>{{ listing.company }}</p>
             </div>
+            <div class="listing-actions">
 
-            <!-- right side: the bookmark button -->
-            {% if listing.id in saved_ids %}
+                <!-- just left of bookmark: score-->
+                    <!-- Ensure it has a score first -->
+                {% if listing.score.score != None %}
+                    <!-- Set class based on number so that it can look different -->
+                    <span
+                        class="credscore {% if listing.score.score < 50 %}credscore--red{% elif listing.score.score < 70 %}credscore--orange{% elif listing.score.score < 90 %}credscore--yellow{% else %}credscore--green{% endif %}"
+                        aria-label="Credibility score {{ listing.score.score }} out of 100"
+                    >{{ listing.score.score }}</span>
+                {% else %}
+                    <span class="credscore credscore--unscored" aria-label="Credibility score unavailable">—</span>
+                {% endif %}
 
-                <!-- already saved: clicking REMOVES the bookmark -->
-                <form method="post" action="/feed/{{ listing.id }}/remove/">
-                    {% csrf_token %}
-                    <button type="submit" class="bookmark-button" aria-label="Remove bookmark">
-
-                        <!-- filled in icon = saved -->
-                        <svg width="24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="black">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                        </svg>
-                    </button>
-                </form>
-
-            {% else %}
-
-                <!-- not saved yet: clicking SAVES the bookmark -->
-                <form method="post" action="/feed/{{ listing.id }}/save/">
-                    {% csrf_token %}
-                    <button type="submit" class="bookmark-button" aria-label="Bookmark listing">
-                        <!-- empty icon = not saved -->
-                        <svg width="24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="none">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                        </svg>
-                    </button>
-                </form>
-            {% endif %}
+                <!-- right side: the bookmark button -->
+                {% if listing.id in saved_ids %}
+                    <form method="post" action="/feed/{{ listing.id }}/remove/">
+                        {% csrf_token %}
+                        <button type="submit" class="bookmark-button" aria-label="Remove bookmark">
+                            <svg width="24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="black">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                        </button>
+                    </form>
+                {% else %}
+                    <form method="post" action="/feed/{{ listing.id }}/save/">
+                        {% csrf_token %}
+                        <button type="submit" class="bookmark-button" aria-label="Bookmark listing">
+                            <svg width="24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="none">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
         </div>
 
     <!-- if there are no listings, show this instead -->
