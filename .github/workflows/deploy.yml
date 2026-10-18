@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Raw source, not a pre-built artifact. SCM_DO_BUILD_DURING_DEPLOYMENT
       # is set on the Web App (infra/terraform/app_service.tf), so Oryx
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Raw source, same reasoning as the backend: Oryx runs npm install
       # and the Vite build server-side on the Web App.
