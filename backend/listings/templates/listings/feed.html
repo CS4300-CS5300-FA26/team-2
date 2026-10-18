@@ -53,7 +53,13 @@
     </style>
 </head>
 <body>
-    <h1>Job Feed</h1>
+    <!-- top bar: title on the left, Saved Jobs link on the right -->
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Job Feed</h1>
+
+        <!-- link to the page with all my bookmarked jobs -->
+        <a href="/saved/">Saved Jobs</a>
+    </div>
 
     <!-- show each listing from the database -->
     {% for listing in listings %}
