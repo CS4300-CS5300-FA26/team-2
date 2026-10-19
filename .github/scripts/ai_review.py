@@ -7,7 +7,7 @@ import urllib.error
 import urllib.request
 
 # Which OpenAI model to use (change this if OpenAI retires it)
-MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+MODEL = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 
 # Very large diffs are cut off so the request isn't too big
 MAX_CHARS = 60000
