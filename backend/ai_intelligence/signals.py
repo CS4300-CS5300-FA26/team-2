@@ -58,7 +58,7 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
 
     # Create instance of model
     client = OpenAI(
-        api_key = os.environ["OPEN_AI_API_KEY"]
+        api_key = os.environ["OPENAI_API_KEY"]
     )
     
     # Give model listing to judge
