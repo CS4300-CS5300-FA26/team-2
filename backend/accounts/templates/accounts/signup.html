@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pathfinder - Sign up</title>
+
+    <style>
+        /* soft gradient background with the card centered on the page */
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #eef2ff 0%, #f4f5f7 50%, #e0f2fe 100%);
+            color: #1f2937;
+        }
+
+        /* the white sign-up card */
+        .card {
+            width: 100%;
+            max-width: 400px;
+            background-color: white;
+            border-radius: 16px;
+            padding: 36px 32px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .brand {
+            font-weight: 700;
+            font-size: 14px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #4f46e5;
+            margin: 0 0 8px 0;
+        }
+
+        h1 {
+            margin: 0 0 4px 0;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            margin: 0 0 24px 0;
+            color: #6b7280;
+        }
+
+        /* one block per form field */
+        .field {
+            margin-bottom: 18px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .field input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 11px 12px;
+            font-size: 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        /* blue glow on the box you're typing in */
+        .field input:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+
+        /* red box when that field has an error */
+        .field.has-error input {
+            border-color: #dc2626;
+        }
+
+        /* small gray hint text (this is where the password rules show up) */
+        .help {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 6px;
+        }
+
+        .help ul {
+            margin: 4px 0 0 0;
+            padding-left: 18px;
+        }
+
+        /* red error text under a field */
+        .errorlist {
+            list-style: none;
+            margin: 6px 0 0 0;
+            padding: 0;
+            font-size: 13px;
+            color: #dc2626;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            background-color: #4f46e5;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        button:hover {
+            background-color: #4338ca;
+        }
+
+        .footer {
+            margin: 20px 0 0 0;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .footer a {
+            color: #4f46e5;
+            font-weight: 600;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <p class="brand">Pathfinder</p>
+        <h1>Sign up</h1>
+        <p class="subtitle">Create your account to start saving jobs.</p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- errors that aren't tied to one field -->
+            {{ form.non_field_errors }}
+
+            <!-- show each field (username, password, confirm password)
+                 with its label, any errors, and its help text.
+                 The password help text lists the password requirements. -->
+            {% for field in form %}
+                <div class="field{% if field.errors %} has-error{% endif %}">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {{ field.errors }}
+                    {% if field.help_text %}
+                        <div class="help">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <button type="submit">Create account</button>
+        </form>
+
+        <p class="footer">Already have an account? <a href="/accounts/login/">Log in</a></p>
+    </div>
+</body>
+</html>

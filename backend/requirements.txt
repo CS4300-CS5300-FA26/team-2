@@ -24,3 +24,7 @@ truststore==0.10.5
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.5
+psycopg[binary]==3.2.4
+whitenoise==6.12.0
+behave-django==1.9.0
+coverage==7.16.2

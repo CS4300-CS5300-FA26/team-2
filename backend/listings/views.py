@@ -52,3 +52,14 @@ def remove_bookmark(request, listing_id):
     Bookmark.objects.filter(user=request.user, listing=listing).delete()
 
     return redirect("/feed/")
+
+#Sprint 1
+# Saved Jobs page: shows every job the logged-in user bookmarked
+@login_required  # not logged in? send them to the login page
+def saved_jobs(request):
+    # get only the listings that THIS user bookmarked,
+    # newest bookmark first
+    listings = Listing.objects.filter(bookmark__user=request.user).order_by("-bookmark__created_at")
+
+    # send those listings to the saved_jobs.html page
+    return render(request, "listings/saved_jobs.html", {"listings": listings})
