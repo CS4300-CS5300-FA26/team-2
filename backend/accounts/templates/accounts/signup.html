@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pathfinder - Sign up</title>
+    <title>Pathfinder - {{ heading|default:"Sign up" }}</title>
 
     <style>
         /* soft gradient background with the card centered on the page */
@@ -42,6 +42,13 @@
         h1 {
             margin: 0 0 4px 0;
             font-size: 26px;
+        }
+
+        /* "Step 1 of 2" label so the user knows where they are */
+        .step {
+            margin: 0 0 4px 0;
+            font-size: 13px;
+            color: #6b7280;
         }
 
         .subtitle {
@@ -140,8 +147,9 @@
 
     <div class="card">
         <p class="brand">Pathfinder</p>
-        <h1>Sign up</h1>
-        <p class="subtitle">Create your account to start saving jobs.</p>
+        <p class="step">{{ step|default:"Step 1 of 2" }}</p>
+        <h1>{{ heading|default:"Sign up" }}</h1>
+        <p class="subtitle">{{ subtitle|default:"Create your account to start saving jobs." }}</p>
 
         <form method="post">
             {% csrf_token %}
@@ -163,10 +171,13 @@
                 </div>
             {% endfor %}
 
-            <button type="submit">Create account</button>
+            <button type="submit">{{ button|default:"Create account" }}</button>
         </form>
 
-        <p class="footer">Already have an account? <a href="/accounts/login/">Log in</a></p>
+        <!-- only on step 1, since by step 2 the user is already logged in -->
+        {% if not step %}
+            <p class="footer">Already have an account? <a href="/accounts/login/">Log in</a></p>
+        {% endif %}
     </div>
 </body>
 </html>
