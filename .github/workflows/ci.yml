@@ -60,6 +60,7 @@ jobs:
       DATABASE_URL: postgres://pathfinder:pathfinder@localhost:5432/pathfinder
       SECRET_KEY: ci-only-secret-key
       DJANGO_SETTINGS_MODULE: pathfinder.settings.dev
+      OPEN_AI_API_KEY: ${{ secrets.OPEN_AI_API_KEY }}
 
     steps:
       - name: Check out repository
