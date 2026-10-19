@@ -81,6 +81,46 @@
         }
         /* End of credscore stylings */
 
+        /* For CredScore showing reason on hover */
+        .credscore-tooltip {
+            position: relative;
+            display: inline-flex;
+            cursor: help;
+        }
+
+        .credscore-tooltip:focus-visible {
+            outline: 2px solid #333;
+            outline-offset: 3px;
+            border-radius: 50%;
+        }
+
+        .credscore-reasons {
+            position: absolute;
+            z-index: 1;
+            right: 0;
+            bottom: 100%;
+            width: min(240px, calc(100vw - 48px));
+            padding: 10px 12px;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            color: #333;
+            font-size: 14px;
+            font-weight: normal;
+            line-height: 1.4;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 150ms ease;
+        }
+
+        .credscore-tooltip:hover .credscore-reasons,
+        .credscore-tooltip:focus .credscore-reasons,
+        .credscore-tooltip:focus-within .credscore-reasons {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* End of CredScore showing reasons on hover */
+
         /* remove the default gray button box */
         .bookmark-button {
             background: none;
@@ -113,11 +153,29 @@
                 <!-- just left of bookmark: score-->
                     <!-- Ensure it has a score first -->
                 {% if listing.score.score != None %}
-                    <!-- Set class based on number so that it can look different -->
-                    <span
-                        class="credscore {% if listing.score.score < 50 %}credscore--red{% elif listing.score.score < 70 %}credscore--orange{% elif listing.score.score < 90 %}credscore--yellow{% else %}credscore--green{% endif %}"
-                        aria-label="Credibility score {{ listing.score.score }} out of 100"
-                    >{{ listing.score.score }}</span>
+                    {% if listing.score.reasoning %}
+                        <span
+                            class="credscore-tooltip"
+                            tabindex="0"
+                            aria-label="Credibility score {{ listing.score.score }}"
+                            aria-describedby="credscore-reasons-{{ listing.id }}"
+                        >
+                            <span
+                                class="credscore {% if listing.score.score < 50 %}credscore--red{% elif listing.score.score < 70 %}credscore--orange{% elif listing.score.score < 90 %}credscore--yellow{% else %}credscore--green{% endif %}"
+                                aria-hidden="true"
+                            >{{ listing.score.score }}</span>
+                            <span
+                                class="credscore-reasons"
+                                id="credscore-reasons-{{ listing.id }}"
+                                role="tooltip"
+                            >{{ listing.score.reasoning }}</span>
+                        </span>
+                    {% else %}
+                        <span
+                            class="credscore {% if listing.score.score < 50 %}credscore--red{% elif listing.score.score < 70 %}credscore--orange{% elif listing.score.score < 90 %}credscore--yellow{% else %}credscore--green{% endif %}"
+                            aria-label="Credibility score {{ listing.score.score }} out of 100"
+                        >{{ listing.score.score }}</span>
+                    {% endif %}
                 {% else %}
                     <span class="credscore credscore--unscored" aria-label="Credibility score unavailable">—</span>
                 {% endif %}

@@ -11,7 +11,7 @@ from .models import Bookmark, Listing
 @login_required
 def feed(request):
     # get all the listings, newest first
-    listings = Listing.objects.all().order_by("-created_at")
+    listings = Listing.objects.select_related("score").order_by("-created_at")
 
     # make a list of the ids of listings this user bookmarked
     saved_ids = []
