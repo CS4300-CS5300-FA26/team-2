@@ -24,10 +24,12 @@ INSTALLED_APPS = [
     "ai_intelligence",
     "listings",
     "tracking",
+    "behave_django",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",# Serve collected static files when Django runs on Railway
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
