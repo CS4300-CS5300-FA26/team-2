@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 def parse_credibility_response(answer):
     
+    if answer is None:
+        raise TypeError(f"AI returned None message")
+    
     # Ensure AI output in desired format
     match = re.fullmatch(
         r"\s*Reasons:\s*(.*?)\s*;\s*Final Score:\s*(\d{1,3})\s*",
@@ -64,7 +67,8 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
     # Simple try / except to handle the issue of listing objects still needing to be made if AI call fails
     # Better solution will be background task, but I will make a new issue for that and work on it in sprint 2
     try:
-        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        # os.environ.get works better in case there is no key
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         response = client.chat.completions.create(
             model="gpt-6-luna",
             messages=[{"role": "user", "content":
@@ -83,18 +87,25 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
         try:
             reasoning, score = parse_credibility_response(answer)
         except ValueError:
-            # CredibilityScore will become N/A
-            return
-        
-        # Create the object
+            # Return unscored Credibility score as per CR1-102126
+            CredibilityScore.objects.create(
+                listing=instance,
+                score=None,
+                reasoning=None,
+            )
+        else:
+            # Create the object
+            CredibilityScore.objects.create(
+                listing=instance,
+                score=score,
+                reasoning=reasoning,
+            )
+    
+    except (OpenAIError, KeyError):
         CredibilityScore.objects.create(
             listing=instance,
-            score=score,
-            reasoning=reasoning,
+            score = None,
+            reasoning = None,
         )
-        
-    except OpenAIError:
-        CredibilityScore.objects.create(
-            listing=instance
-        )
-        return
+    
+    return

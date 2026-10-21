@@ -158,7 +158,7 @@
 
                 <!-- just left of bookmark: score-->
                     <!-- Ensure it has a score first -->
-                {% if listing.score.score != None %}
+                {% if listing.score and listing.score.score != None %}
                     {% if listing.score.reasoning %}
                         <span
                             class="credscore-tooltip"

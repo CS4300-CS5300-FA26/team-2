@@ -13,6 +13,7 @@ from openai import OpenAIError
 
 # https://docs.python.org/3/library/unittest.mock.html
 from unittest.mock import patch
+import os
 
 class AiTests(TestCase):
     
@@ -44,6 +45,27 @@ class AiTests(TestCase):
         self.assertTrue(Listing.objects.filter(pk=listing.pk).exists())
         self.assertIsNone(listing.score.score)
         self.assertIsNone(listing.score.reasoning)
+    
+    # Test | If AI call is successful, but message is None, listing is still saved with an N/A credibility score
+    def test_message_none(self):
+        self.mock_openai.return_value.chat.completions.create.return_value.choices[0].message.content = None
+        with self.assertRaises(TypeError):
+            parse_credibility_response(self.mock_openai.return_value.chat.completions.create.return_value.choices[0].message.content)
+    
+    # Test | A lack of API key doesn't crash
+    def test_no_key(self):
+        
+        # remake env as dictionary and skip API key
+        env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+        
+        # patch.dict allows temporarily changing dictionary, which is what env is
+        with patch.dict(os.environ, env, clear=True):
+            self.mock_openai.side_effect = OpenAIError("401 - Incorrect API key provided")
+            listing = Listing.objects.create(title="another job", company="another company")
+            self.mock_openai.assert_called_with(api_key=None)
+            self.assertTrue(Listing.objects.filter(pk=listing.pk).exists())
+            self.assertIsNone(listing.score.score)
+            self.assertIsNone(listing.score.reasoning)
     
     # Test | Upon creating a credibility score, is it attached to the listing?
     def test_credibility_attached(self):
@@ -84,7 +106,4 @@ class AiTests(TestCase):
         
         # Too many characters in reasoning
         with self.assertRaises(ValueError):
-            parse_credibility_response("""Reasons: This listing seems fascinating! The company, Shinra Corp seems like it is the most 
-                                       ethical company in the world, and they would do nothing wrong. You should definitely apply for their 
-                                       position, and enter the fabulous wondrous world of Mako mining! I need a few more characters to be over 
-                                       the limit. Final Score: 69""")
+            parse_credibility_response("Reasons: This listing seems fascinating! The company, Shinra Corp seems like it is the most ethical company in the world, and they would do nothing wrong. You should definitely apply for their position, and enter the fabulous wondrous world of Mako mining! I need a few more characters to be over the limit. Final Score: 69")
