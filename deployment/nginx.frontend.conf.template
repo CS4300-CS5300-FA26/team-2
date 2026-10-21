@@ -64,6 +64,21 @@ server {
         proxy_set_header X-Forwarded-Proto https;
     }
 
+    # Redirect the saved shortcut to the normal Saved Jobs address
+    location = /saved {
+        return 301 /saved/;
+    }
+
+
+    # Send the Saved Jobs page to the private backend
+    location /saved/ {
+        proxy_pass http://${BACKEND_HOST}:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
     # Send resume upload pages to the private backend service
     location /resumes/ {
         proxy_pass http://${BACKEND_HOST}:8000;
