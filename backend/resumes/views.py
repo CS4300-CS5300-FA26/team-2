@@ -1,11 +1,24 @@
 # Requires a user to be logged in before they can upload a resume
 from django.contrib.auth.decorators import login_required
 
-# Gives us tools for rendering pages and redirecting users
-from django.shortcuts import redirect, render
 
-# Imports the form that validates uploaded resume files
+# Shows a message when feedback cannot be created
+from django.contrib import messages
+
+# Provides page rendering redirects and secure object lookup
+from django.shortcuts import get_object_or_404, redirect, render
+
+# Makes the feedback URL accept button submissions only
+from django.views.decorators.http import require_POST
+
+# Validates resume uploads
 from .forms import ResumeUploadForm
+
+# Gives the view access to saved resumes
+from .models import Resume
+
+# Handles the OpenAI request outside the view
+from .services import ResumeFeedbackError, get_resume_feedback
 
 
 @login_required
@@ -46,5 +59,42 @@ def upload_resume(request):
         {
             "form": form,
             "resumes": resumes,
+        },
+    )
+
+
+@login_required
+@require_POST
+def request_resume_feedback(request, resume_id):
+    """
+    Gets AI feedback for one resume owned by the logged in user
+    """
+
+    # Only find the resume if it belongs to the logged in user
+    resume = get_object_or_404(
+        Resume,
+        id=resume_id,
+        owner=request.user,
+    )
+
+    try:
+        # Ask the service to review the selected resume
+        feedback = get_resume_feedback(resume)
+
+    except ResumeFeedbackError:
+        # Return safely instead of exposing a technical API error
+        messages.error(
+            request,
+            "AI feedback is unavailable right now. Please try again later.",
+        )
+        return redirect("resumes:upload")
+
+    # Send the resume and feedback to the results page
+    return render(
+        request,
+        "resumes/feedback.html",
+        {
+            "resume": resume,
+            "feedback": feedback,
         },
     )
