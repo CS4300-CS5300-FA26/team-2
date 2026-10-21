@@ -24,6 +24,8 @@ urlpatterns = [
     path("resumes/", include("resumes.urls")),
     # sign-up page (US1.1)
     path("accounts/signup/", account_views.signup, name="signup"),
+    # sign-up step 2: fill in the profile (US1.2)
+    path("accounts/signup/profile/", account_views.signup_profile, name="signup_profile"),
     #Run feed view when someone visits the site
     path("feed/", listing_views.feed),
     # clicking an empty bookmark saves it, clicking a filled one removes it

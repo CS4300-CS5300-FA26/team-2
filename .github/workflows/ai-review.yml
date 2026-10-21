@@ -1,0 +1,44 @@
+name: AI Code Review
+
+# Runs on every pull request: when it's opened, and each time new commits are pushed
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Lets the workflow read the code and post a comment on the PR
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    name: AI code review (OpenAI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          # get full history so we can compare this branch to the base branch
+          fetch-depth: 0
+
+      # Save only the lines this PR changed into a file
+      - name: Get the PR changes
+        run: git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # Send the changes to OpenAI and save its review to review.md
+      - name: Ask OpenAI to review the changes
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/ai_review.py pr.diff review.md
+
+      # Post the review as a comment on the PR
+      - name: Post the review on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file review.md
