@@ -64,6 +64,11 @@ server {
         proxy_set_header X-Forwarded-Proto https;
     }
 
+    # Redirect the saved shortcut to the normal Saved Jobs address
+    location = /saved {
+        return 301 /saved/;
+    }
+
 
     # Send the Saved Jobs page to the private backend
     location /saved/ {
