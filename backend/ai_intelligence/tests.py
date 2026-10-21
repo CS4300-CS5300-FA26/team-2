@@ -1,23 +1,49 @@
-from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase    # Obviously needed
 
+# Local Models and functions
 from .models import CredibilityScore
 from listings.models import Listing
-
-import os
-import random
-from django.db import IntegrityError
-from unittest.mock import patch
-
 from .signals import parse_credibility_response
+
+import random   # TODO: get rid of random calls in tests
+
+# Error types
+from django.db import IntegrityError
+from openai import OpenAIError
+
+# https://docs.python.org/3/library/unittest.mock.html
+from unittest.mock import patch
 
 class AiTests(TestCase):
     
     def setUp(self):
+        
+        # Create mock AI for tests
+        self.openai_patcher = patch("ai_intelligence.signals.OpenAI")
+        self.mock_openai = self.openai_patcher.start()
+        self.addCleanup(self.openai_patcher.stop)
+        self.mock_openai.return_value.chat.completions.create.return_value.choices[0].message.content = (
+            "Reasons: Consistent company, clear title; Final Score: 82"
+        )
+
         # Create listing for the credibility score to be attached to
         self.listing = Listing.objects.create(title="job", company="company")
         
         random.seed()
+
+    # Test | If the AI call fails, the listing is still saved with an N/A credibility score
+    def test_listing_is_saved_when_ai_call_fails(self):
+        
+        # Return failed AI call
+        self.mock_openai.return_value.chat.completions.create.side_effect = OpenAIError(
+            "AI service unavailable"
+        )
+
+        listing = Listing.objects.create(title="another job", company="another company")
+
+        self.assertTrue(Listing.objects.filter(pk=listing.pk).exists())
+        self.assertIsNone(listing.score.score)
+        self.assertIsNone(listing.score.reasoning)
     
     # Test | Upon creating a credibility score, is it attached to the listing?
     def test_credibility_attached(self):
