@@ -61,6 +61,8 @@ def upload_resume(request):
             "resumes": resumes,
         },
     )
+
+
 @login_required
 @require_POST
 def request_resume_feedback(request, resume_id):
@@ -96,4 +98,3 @@ def request_resume_feedback(request, resume_id):
             "feedback": feedback,
         },
     )
-    

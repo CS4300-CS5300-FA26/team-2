@@ -37,7 +37,7 @@ class ResumeUploadTests(TestCase):
 
     def sign_in(self):
         self.client.force_login(self.user)
-        
+
     def create_resume(self, owner=None, filename="resume.pdf"):
         """
         Creates a resume that can be reused by feedback tests
@@ -117,7 +117,7 @@ class ResumeUploadTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertNotContains(response, "private-resume.pdf")
-        
+
 
     def test_feedback_requires_login(self):
         resume = self.create_resume()
@@ -236,7 +236,7 @@ class ResumeUploadTests(TestCase):
 
         self.assertContains(response, "Get AI feedback")
         self.assertContains(response, feedback_url)
-        
+
     def test_resume_file_is_prepared_for_openai(self):
         resume = self.create_resume()
 
