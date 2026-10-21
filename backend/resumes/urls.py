@@ -12,4 +12,9 @@ app_name = "resumes"
 # Connects the upload URL to the upload_resume view
 urlpatterns = [
     path("upload/", views.upload_resume, name="upload"),
+    path(
+        "<int:resume_id>/feedback/",
+        views.request_resume_feedback,
+        name="feedback",
+    ),
 ]
