@@ -5,6 +5,8 @@ class CredibilityScore(models.Model):
     listing = models.OneToOneField("listings.Listing", on_delete=models.CASCADE, related_name="score")
     score = models.IntegerField(null=True, blank=True)
     
+    reasoning = models.CharField(max_length=256, null=True) # TODO: Change to JSONField
+    
     # Name for the CredibilityScore object is in form of
     # "<name of listing> | <score>""
     def __str__(self):
