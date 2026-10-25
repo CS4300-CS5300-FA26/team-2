@@ -278,3 +278,90 @@ class RemoveFromSavedPageTests(TestCase):
         # mine is gone, theirs is still there
         self.assertFalse(Bookmark.objects.filter(user=self.user, listing=self.listing).exists())
         self.assertTrue(Bookmark.objects.filter(user=other_user, listing=self.listing).exists())
+
+
+
+#Sprint 2
+# Tests for US4.4: adding a private note to a saved job
+class PrivateNoteTests(TestCase):
+
+    # setUp runs before every test: me, another user, and one job I saved
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
+        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        self.listing = Listing.objects.create(title="Software Intern", company="MITRE")
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+
+        # the address the note form sends to
+        self.note_url = f"/saved/{self.listing.id}/note/"
+
+
+    # TEST 1: each saved job has a note form
+    def test_saved_page_has_note_form(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, f'action="{self.note_url}"')
+
+
+    # TEST 2: adding a note saves it and shows it when I come back
+    def test_add_note_saves_it(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.note_url, {"note": "Great mentorship program"})
+
+        # sends me back to Saved Jobs
+        self.assertRedirects(response, "/saved/")
+
+        # the note is saved on my bookmark
+        self.bookmark.refresh_from_db()
+        self.assertEqual(self.bookmark.note, "Great mentorship program")
+
+        # and I can see it when I return
+        response = self.client.get("/saved/")
+        self.assertContains(response, "Great mentorship program")
+
+
+    # TEST 3: my note is private, other users don't see it
+    def test_note_only_visible_to_me(self):
+        # the other user saved the same job
+        Bookmark.objects.create(user=self.other_user, listing=self.listing)
+
+        # I add a note
+        self.client.force_login(self.user)
+        self.client.post(self.note_url, {"note": "My secret reason"})
+
+        # the other user looks at their Saved Jobs page
+        self.client.force_login(self.other_user)
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, "Software Intern")
+        self.assertNotContains(response, "My secret reason")
+
+
+    # TEST 4: you can't add a note to a job you haven't saved
+    def test_cannot_add_note_without_bookmark(self):
+        # the other user never saved this job
+        self.client.force_login(self.other_user)
+        response = self.client.post(self.note_url, {"note": "Sneaky note"})
+
+        # 404 = not found, and my bookmark's note is unchanged
+        self.assertEqual(response.status_code, 404)
+        self.bookmark.refresh_from_db()
+        self.assertEqual(self.bookmark.note, "")
+
+
+    # TEST 5: you have to be logged in to add a note
+    def test_note_needs_login(self):
+        response = self.client.post(self.note_url, {"note": "Hello"})
+
+        # 302 = sent to the login page
+        self.assertEqual(response.status_code, 302)
+
+
+    # TEST 6: just visiting the note address (GET) doesn't change anything
+    def test_get_not_allowed(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.note_url)
+
+        # 405 = only the form (POST) can save a note
+        self.assertEqual(response.status_code, 405)
