@@ -13,7 +13,7 @@
         }
 
         /* each saved job is one row:
-           job info on the left, note and buttons on the right */
+           job info and notes on the left, note box and buttons on the right */
         .listing {
             display: flex;
             justify-content: space-between;
@@ -33,20 +33,52 @@
             color: #555;
         }
 
-        /* my saved note, shown under the company name */
-        .note {
-            margin-top: 8px !important;
-            font-style: italic;
+        /* my notes, listed under the company name */
+        .notes {
+            list-style: none;
+            margin: 8px 0 0 0;
+            padding: 0;
         }
 
-        /* right side: note box and buttons next to each other */
+        /* one note: the text, then a little x next to it */
+        .note {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-style: italic;
+            color: #555;
+            margin-bottom: 4px;
+        }
+
+        /* the x form sits inline next to the note */
+        .note form {
+            margin: 0;
+        }
+
+        /* the little x button */
+        .delete-note-button {
+            border: none;
+            background: none;
+            color: #b00020;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 4px;
+            cursor: pointer;
+        }
+
+        .delete-note-button:hover {
+            background: #fde8eb;
+            border-radius: 4px;
+        }
+
+        /* right side: note box and Remove button next to each other */
         .actions {
             display: flex;
             align-items: flex-start;
             gap: 8px;
         }
 
-        /* note box with its buttons underneath */
+        /* note box with the Add note button underneath */
         .note-form {
             display: flex;
             flex-direction: column;
@@ -63,8 +95,9 @@
             resize: vertical;
         }
 
-        /* shared look for all buttons */
-        button {
+        /* shared look for the bigger buttons */
+        .note-form button,
+        .remove-button {
             padding: 6px 12px;
             font-size: 14px;
             border-radius: 6px;
@@ -73,20 +106,18 @@
             cursor: pointer;
         }
 
-        button:hover {
+        .note-form button:hover {
             background: #e8e8e8;
         }
 
-        /* red buttons, so it's clear they delete something */
-        .remove-button,
-        .delete-note-button {
+        /* Remove is red so it's clear it deletes something */
+        .remove-button {
             color: #b00020;
             border-color: #e5a0a8;
             background: #fff5f6;
         }
 
-        .remove-button:hover,
-        .delete-note-button:hover {
+        .remove-button:hover {
             background: #fde8eb;
         }
     </style>
@@ -98,36 +129,38 @@
     {% for listing in listings %}
         <div class="listing">
 
-            <!-- LEFT SIDE: job info -->
+            <!-- LEFT SIDE: job info and my notes -->
             <div>
                 <h3>{{ listing.title }}</h3>
                 <p>{{ listing.company }}</p>
 
-                <!-- US4.4: show my private note, if I wrote one -->
-                {% if listing.my_note %}
-                    <p class="note">My note: {{ listing.my_note }}</p>
+                <!-- US4.4: my private notes, each with an x to delete it -->
+                {% if listing.my_notes %}
+                    <ul class="notes">
+                        {% for note in listing.my_notes %}
+                            <li class="note">
+                                <span>{{ note.text }}</span>
+
+                                <!-- the little x deletes just this one note -->
+                                <form method="post" action="/saved/notes/{{ note.id }}/delete/">
+                                    {% csrf_token %}
+                                    <button type="submit" class="delete-note-button" aria-label="Delete note">&times;</button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
                 {% endif %}
             </div>
 
-            <!-- RIGHT SIDE: note box and buttons -->
+            <!-- RIGHT SIDE: add a note, and the Remove button -->
             <div class="actions">
 
-                <!-- US4.4: form to add or change my private note -->
+                <!-- US4.4: form to add a NEW note (it starts empty every time) -->
                 <form class="note-form" method="post" action="/saved/{{ listing.id }}/note/">
                     {% csrf_token %}
-                    <textarea name="note" rows="2" placeholder="Why did you save this job?">{{ listing.my_note }}</textarea>
-                    <button type="submit">Save note</button>
+                    <textarea name="note" rows="2" placeholder="Why did you save this job?"></textarea>
+                    <button type="submit">Add note</button>
                 </form>
-
-                <!-- US4.4: button to clear my note, only if I have one.
-                     It sends an empty note, which the view saves as no note -->
-                {% if listing.my_note %}
-                    <form method="post" action="/saved/{{ listing.id }}/note/">
-                        {% csrf_token %}
-                        <input type="hidden" name="note" value="">
-                        <button type="submit" class="delete-note-button">Delete note</button>
-                    </form>
-                {% endif %}
 
                 <!-- US4.3: Remove button takes this job off my saved list -->
                 <form method="post" action="/feed/{{ listing.id }}/remove/">
