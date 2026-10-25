@@ -365,3 +365,46 @@ class PrivateNoteTests(TestCase):
 
         # 405 = only the form (POST) can save a note
         self.assertEqual(response.status_code, 405)
+
+
+
+# Tests for deleting a private note (part of US4.4)
+class DeleteNoteTests(TestCase):
+
+    # setUp: one saved job that already has a note
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
+        self.listing = Listing.objects.create(title="Software Intern", company="MITRE")
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing, note="Old note")
+        self.note_url = f"/saved/{self.listing.id}/note/"
+        self.client.force_login(self.user)
+
+
+    # TEST 1: a Delete note button shows when I have a note
+    def test_delete_button_shows_when_note_exists(self):
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, 'class="delete-note-button"')
+
+
+    # TEST 2: no Delete note button when there's no note
+    def test_no_delete_button_without_note(self):
+        self.bookmark.note = ""
+        self.bookmark.save()
+
+        response = self.client.get("/saved/")
+        self.assertNotContains(response, 'class="delete-note-button"')
+
+
+    # TEST 3: deleting clears the note but keeps the saved job
+    def test_delete_note_clears_it(self):
+        # the Delete note button sends an empty note
+        response = self.client.post(self.note_url, {"note": ""})
+        self.assertRedirects(response, "/saved/")
+
+        self.bookmark.refresh_from_db()
+        self.assertEqual(self.bookmark.note, "")
+
+        response = self.client.get("/saved/")
+        self.assertNotContains(response, "Old note")
+        self.assertContains(response, "Software Intern")
