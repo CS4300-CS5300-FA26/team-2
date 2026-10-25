@@ -33,6 +33,8 @@ urlpatterns = [
     path("feed/<int:listing_id>/remove/", listing_views.remove_bookmark),
     #When someone goes to /saved/, Django runs the saved_jobs function to show their saved jobs page.
     path("saved/", listing_views.saved_jobs),
+    # US4.4: saving a private note on a saved job
+    path("saved/<int:listing_id>/note/", listing_views.save_note),
 ]
 
 if settings.DEBUG:
