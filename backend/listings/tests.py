@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from .models import Bookmark, Listing
+from .models import Bookmark, Listing, Note
 
 # get_user_model() gives us whatever User model the project uses,
 # so these tests still work if a teammate makes a custom User later
@@ -278,3 +278,168 @@ class RemoveFromSavedPageTests(TestCase):
         # mine is gone, theirs is still there
         self.assertFalse(Bookmark.objects.filter(user=self.user, listing=self.listing).exists())
         self.assertTrue(Bookmark.objects.filter(user=other_user, listing=self.listing).exists())
+
+
+#Sprint 2
+# Tests for US4.4: private notes on a saved job
+# A saved job can have MANY notes, and each note has its own x to delete it
+class PrivateNoteTests(TestCase):
+
+    # setUp runs before every test: me, another user, and one job I saved
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
+        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        self.listing = Listing.objects.create(title="Software Intern", company="MITRE")
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+
+        # the address the "Add note" form sends to
+        self.add_url = f"/saved/{self.listing.id}/note/"
+
+
+    # helper: the address the x button sends to, for one note
+    def delete_url(self, note):
+        return f"/saved/notes/{note.id}/delete/"
+
+
+    # TEST 1: each saved job has an "Add note" form
+    def test_saved_page_has_add_note_form(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, f'action="{self.add_url}"')
+
+
+    # TEST 2: adding a note saves it and shows it when I come back
+    def test_add_note_saves_it(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.add_url, {"note": "Great mentorship program"})
+
+        # sends me back to Saved Jobs
+        self.assertRedirects(response, "/saved/")
+
+        # the note is saved on my bookmark
+        self.assertEqual(Note.objects.filter(bookmark=self.bookmark).count(), 1)
+
+        # and I can see it when I return
+        response = self.client.get("/saved/")
+        self.assertContains(response, "Great mentorship program")
+
+
+    # TEST 3: adding a second note keeps the first one
+    def test_add_second_note_keeps_first(self):
+        self.client.force_login(self.user)
+        self.client.post(self.add_url, {"note": "First reason"})
+        self.client.post(self.add_url, {"note": "Second reason"})
+
+        self.assertEqual(Note.objects.filter(bookmark=self.bookmark).count(), 2)
+
+        response = self.client.get("/saved/")
+        self.assertContains(response, "First reason")
+        self.assertContains(response, "Second reason")
+
+
+    # TEST 4: an empty note isn't saved
+    def test_empty_note_not_saved(self):
+        self.client.force_login(self.user)
+        self.client.post(self.add_url, {"note": "   "})
+
+        self.assertEqual(Note.objects.count(), 0)
+
+
+    # TEST 5: my notes are private, other users don't see them
+    def test_notes_only_visible_to_me(self):
+        # the other user saved the same job
+        Bookmark.objects.create(user=self.other_user, listing=self.listing)
+
+        # I add a note
+        self.client.force_login(self.user)
+        self.client.post(self.add_url, {"note": "My secret reason"})
+
+        # the other user looks at their Saved Jobs page
+        self.client.force_login(self.other_user)
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, "Software Intern")
+        self.assertNotContains(response, "My secret reason")
+
+
+    # TEST 6: you can't add a note to a job you haven't saved
+    def test_cannot_add_note_without_bookmark(self):
+        # the other user never saved this job
+        self.client.force_login(self.other_user)
+        response = self.client.post(self.add_url, {"note": "Sneaky note"})
+
+        # 404 = not found, and no note was made
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(Note.objects.count(), 0)
+
+
+    # TEST 7: you have to be logged in to add a note
+    def test_add_note_needs_login(self):
+        response = self.client.post(self.add_url, {"note": "Hello"})
+
+        # 302 = sent to the login page
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Note.objects.count(), 0)
+
+
+    # TEST 8: just visiting the add address (GET) doesn't change anything
+    def test_add_note_get_not_allowed(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.add_url)
+
+        # 405 = only the form (POST) can add a note
+        self.assertEqual(response.status_code, 405)
+
+
+    # TEST 9: each note has its own x (delete) button
+    def test_each_note_has_delete_button(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="Delete me later")
+
+        self.client.force_login(self.user)
+        response = self.client.get("/saved/")
+
+        self.assertContains(response, f'action="{self.delete_url(note)}"')
+
+
+    # TEST 10: the x deletes only that one note
+    def test_delete_removes_only_that_note(self):
+        keep = Note.objects.create(bookmark=self.bookmark, text="Keep this one")
+        remove = Note.objects.create(bookmark=self.bookmark, text="Remove this one")
+
+        self.client.force_login(self.user)
+        response = self.client.post(self.delete_url(remove))
+
+        self.assertRedirects(response, "/saved/")
+        self.assertTrue(Note.objects.filter(id=keep.id).exists())
+        self.assertFalse(Note.objects.filter(id=remove.id).exists())
+
+
+    # TEST 11: you can't delete someone else's note
+    def test_cannot_delete_other_users_note(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="My note")
+
+        self.client.force_login(self.other_user)
+        response = self.client.post(self.delete_url(note))
+
+        # 404 = not found, and my note is still there
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+
+    # TEST 12: just visiting the delete address (GET) doesn't delete anything
+    def test_delete_get_not_allowed(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="Still here")
+
+        self.client.force_login(self.user)
+        response = self.client.get(self.delete_url(note))
+
+        self.assertEqual(response.status_code, 405)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+
+    # TEST 13: a note shows as its text (used on the admin page)
+    def test_note_str(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="Remember the 401k match")
+
+        self.assertEqual(str(note), "Remember the 401k match")
