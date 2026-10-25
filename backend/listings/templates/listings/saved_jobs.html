@@ -7,15 +7,21 @@
         /* center the page and use a cleaner font */
         body {
             font-family: Arial, sans-serif;
-            max-width: 700px;
+            max-width: 800px;
             margin: 40px auto;
             padding: 0 16px;
         }
 
-        /* a line between each saved job */
+        /* each saved job is one row:
+           job info on the left, note and buttons on the right */
         .listing {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;   /* stacks on small screens */
             border-bottom: 1px solid #ddd;
-            padding: 12px 0;
+            padding: 16px 0;
         }
 
         .listing h3 {
@@ -26,6 +32,63 @@
             margin: 0;
             color: #555;
         }
+
+        /* my saved note, shown under the company name */
+        .note {
+            margin-top: 8px !important;
+            font-style: italic;
+        }
+
+        /* right side: note box and buttons next to each other */
+        .actions {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        /* note box with its buttons underneath */
+        .note-form {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .note-form textarea {
+            width: 240px;
+            padding: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        /* shared look for all buttons */
+        button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #e8e8e8;
+        }
+
+        /* red buttons, so it's clear they delete something */
+        .remove-button,
+        .delete-note-button {
+            color: #b00020;
+            border-color: #e5a0a8;
+            background: #fff5f6;
+        }
+
+        .remove-button:hover,
+        .delete-note-button:hover {
+            background: #fde8eb;
+        }
     </style>
 </head>
 <body>
@@ -34,29 +97,47 @@
     <!-- show each job this user saved -->
     {% for listing in listings %}
         <div class="listing">
-            <h3>{{ listing.title }}</h3>
-            <p>{{ listing.company }}</p>
-              
-            <!-- US4.4: show my private note, if I wrote one -->
-            {% if listing.my_note %}
-                <p class="note">My note: {{ listing.my_note }}</p>
-            {% endif %}
 
-            <!-- US4.4: form to add or change my private note -->
-            <form method="post" action="/saved/{{ listing.id }}/note/">
-                {% csrf_token %}
-                <textarea name="note" rows="2" placeholder="Why did you save this job?">{{ listing.my_note }}</textarea>
-                <button type="submit">Save note</button>
-            </form>
-            
-            <!-- US4.3: Remove button takes this job off my saved list -->
-            <form method="post" action="/feed/{{ listing.id }}/remove/">
-                {% csrf_token %}
+            <!-- LEFT SIDE: job info -->
+            <div>
+                <h3>{{ listing.title }}</h3>
+                <p>{{ listing.company }}</p>
 
-                <!-- tells the view to come back to Saved Jobs, not the feed -->
-                <input type="hidden" name="next" value="saved">
-                <button type="submit">Remove</button>
-            </form>
+                <!-- US4.4: show my private note, if I wrote one -->
+                {% if listing.my_note %}
+                    <p class="note">My note: {{ listing.my_note }}</p>
+                {% endif %}
+            </div>
+
+            <!-- RIGHT SIDE: note box and buttons -->
+            <div class="actions">
+
+                <!-- US4.4: form to add or change my private note -->
+                <form class="note-form" method="post" action="/saved/{{ listing.id }}/note/">
+                    {% csrf_token %}
+                    <textarea name="note" rows="2" placeholder="Why did you save this job?">{{ listing.my_note }}</textarea>
+                    <button type="submit">Save note</button>
+                </form>
+
+                <!-- US4.4: button to clear my note, only if I have one.
+                     It sends an empty note, which the view saves as no note -->
+                {% if listing.my_note %}
+                    <form method="post" action="/saved/{{ listing.id }}/note/">
+                        {% csrf_token %}
+                        <input type="hidden" name="note" value="">
+                        <button type="submit" class="delete-note-button">Delete note</button>
+                    </form>
+                {% endif %}
+
+                <!-- US4.3: Remove button takes this job off my saved list -->
+                <form method="post" action="/feed/{{ listing.id }}/remove/">
+                    {% csrf_token %}
+
+                    <!-- tells the view to come back to Saved Jobs, not the feed -->
+                    <input type="hidden" name="next" value="saved">
+                    <button type="submit" class="remove-button">Remove</button>
+                </form>
+            </div>
         </div>
 
     <!-- if they haven't saved anything, show this instead -->
