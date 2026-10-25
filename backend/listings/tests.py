@@ -264,3 +264,17 @@ class RemoveFromSavedPageTests(TestCase):
         response = self.client.post(self.remove_url)
 
         self.assertRedirects(response, "/feed/")
+   
+    # TEST 5: removing my bookmark doesn't remove someone else's bookmark
+    # for the same job
+    def test_remove_does_not_affect_other_users(self):
+        # another user saves the same job
+        other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        Bookmark.objects.create(user=other_user, listing=self.listing)
+
+        # I remove my bookmark
+        self.client.post(self.remove_url, {"next": "saved"})
+
+        # mine is gone, theirs is still there
+        self.assertFalse(Bookmark.objects.filter(user=self.user, listing=self.listing).exists())
+        self.assertTrue(Bookmark.objects.filter(user=other_user, listing=self.listing).exists())
