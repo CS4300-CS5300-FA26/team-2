@@ -22,6 +22,10 @@ class Bookmark(models.Model):
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE)
     #when they saved it
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # US4.4: a private note about why I saved this job
+    # blank=True means the note is optional, default="" means it starts empty
+    note = models.TextField(blank=True, default="")
 
     class Meta:
         # a user can only bookmark the same listing once
