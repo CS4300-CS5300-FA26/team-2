@@ -62,9 +62,34 @@ def remove_bookmark(request, listing_id):
 # Saved Jobs page: shows every job the logged-in user bookmarked
 @login_required  # not logged in? send them to the login page
 def saved_jobs(request):
-    # get only the listings that THIS user bookmarked,
-    # newest bookmark first
-    listings = Listing.objects.filter(bookmark__user=request.user).order_by("-bookmark__created_at")
+    # US4.4: start from MY bookmarks, so we can also show my private note
+    bookmarks = Bookmark.objects.filter(user=request.user).select_related("listing").order_by("-created_at")
+
+    # make a list of the saved jobs, and attach my note to each one
+    listings = []
+    for bookmark in bookmarks:
+        listing = bookmark.listing
+        listing.my_note = bookmark.note
+        listings.append(listing)
 
     # send those listings to the saved_jobs.html page
     return render(request, "listings/saved_jobs.html", {"listings": listings})
+
+
+
+#Sprint 2
+# US4.4: save a private note on one of my saved jobs
+@login_required  # not logged in? send them to the login page
+@require_POST    # only the form can save a note, not just visiting the address
+def save_note(request, listing_id):
+    # find MY bookmark for this job.
+    # if I haven't saved this job, this gives a 404 page,
+    # so nobody can add a note to someone else's bookmark
+    bookmark = get_object_or_404(Bookmark, user=request.user, listing_id=listing_id)
+
+    # get the text from the form (empty if missing) and remove extra spaces
+    bookmark.note = request.POST.get("note", "").strip()
+    bookmark.save()
+
+    # go back to the Saved Jobs page
+    return redirect("/saved/")
