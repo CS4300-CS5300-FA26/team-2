@@ -36,6 +36,18 @@
         <div class="listing">
             <h3>{{ listing.title }}</h3>
             <p>{{ listing.company }}</p>
+              
+            <!-- US4.4: show my private note, if I wrote one -->
+            {% if listing.my_note %}
+                <p class="note">My note: {{ listing.my_note }}</p>
+            {% endif %}
+
+            <!-- US4.4: form to add or change my private note -->
+            <form method="post" action="/saved/{{ listing.id }}/note/">
+                {% csrf_token %}
+                <textarea name="note" rows="2" placeholder="Why did you save this job?">{{ listing.my_note }}</textarea>
+                <button type="submit">Save note</button>
+            </form>
             
             <!-- US4.3: Remove button takes this job off my saved list -->
             <form method="post" action="/feed/{{ listing.id }}/remove/">
