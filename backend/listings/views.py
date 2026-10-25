@@ -50,6 +50,11 @@ def remove_bookmark(request, listing_id):
     # delete this user's bookmark for this listing.
     # if it's already gone, this just does nothing, so clicking twice is fine
     Bookmark.objects.filter(user=request.user, listing=listing).delete()
+    
+    # US4.3: the Remove button on the Saved Jobs page sends next="saved",
+    # so send them back to Saved Jobs instead of the feed
+    if request.POST.get("next") == "saved":
+        return redirect("/saved/")
 
     return redirect("/feed/")
 

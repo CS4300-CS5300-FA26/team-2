@@ -213,3 +213,68 @@ class SavedJobsPageTests(TestCase):
 
         # 302 = Django sent us to the login page instead
         self.assertEqual(response.status_code, 302)
+
+
+
+#Sprint 2
+# Tests for US4.3: removing a bookmark from the Saved Jobs page
+class RemoveFromSavedPageTests(TestCase):
+
+    # setUp runs before every test: one user with one saved job
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass123")
+        self.listing = Listing.objects.create(title="Software Intern", company="MITRE")
+        Bookmark.objects.create(user=self.user, listing=self.listing)
+
+        # the address the Remove button sends the form to
+        self.remove_url = f"/feed/{self.listing.id}/remove/"
+
+        # log in for every test in this class
+        self.client.force_login(self.user)
+
+
+    # TEST 1: each saved job has a Remove button
+    def test_saved_page_has_remove_button(self):
+        response = self.client.get("/saved/")
+
+        # the button's form should send to this job's remove address
+        self.assertContains(response, f'action="{self.remove_url}"')
+
+
+    # TEST 2: removing from the Saved Jobs page sends you back to Saved Jobs
+    def test_remove_from_saved_page_goes_back_to_saved(self):
+        # "next": "saved" is the hidden field the Remove button sends
+        response = self.client.post(self.remove_url, {"next": "saved"})
+
+        self.assertRedirects(response, "/saved/")
+
+
+    # TEST 3: after removing, the job is no longer on the Saved Jobs page
+    def test_removed_job_not_on_saved_page(self):
+        self.client.post(self.remove_url, {"next": "saved"})
+        response = self.client.get("/saved/")
+
+        self.assertNotContains(response, "Software Intern")
+        self.assertContains(response, "You haven't saved any jobs yet.")
+
+
+    # TEST 4: removing from the feed still sends you back to the feed
+    # (makes sure we didn't break US4.1)
+    def test_remove_from_feed_still_goes_to_feed(self):
+        response = self.client.post(self.remove_url)
+
+        self.assertRedirects(response, "/feed/")
+   
+    # TEST 5: removing my bookmark doesn't remove someone else's bookmark
+    # for the same job
+    def test_remove_does_not_affect_other_users(self):
+        # another user saves the same job
+        other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        Bookmark.objects.create(user=other_user, listing=self.listing)
+
+        # I remove my bookmark
+        self.client.post(self.remove_url, {"next": "saved"})
+
+        # mine is gone, theirs is still there
+        self.assertFalse(Bookmark.objects.filter(user=self.user, listing=self.listing).exists())
+        self.assertTrue(Bookmark.objects.filter(user=other_user, listing=self.listing).exists())

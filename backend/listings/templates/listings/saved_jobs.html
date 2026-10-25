@@ -36,6 +36,15 @@
         <div class="listing">
             <h3>{{ listing.title }}</h3>
             <p>{{ listing.company }}</p>
+            
+            <!-- US4.3: Remove button takes this job off my saved list -->
+            <form method="post" action="/feed/{{ listing.id }}/remove/">
+                {% csrf_token %}
+
+                <!-- tells the view to come back to Saved Jobs, not the feed -->
+                <input type="hidden" name="next" value="saved">
+                <button type="submit">Remove</button>
+            </form>
         </div>
 
     <!-- if they haven't saved anything, show this instead -->

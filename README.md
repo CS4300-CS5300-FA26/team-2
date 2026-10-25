@@ -84,7 +84,9 @@ and the icon fills in to show it's bookmarked. Clicking it again removes the boo
 Logged-in users can see all their bookmarked listings at `/saved/`, or by clicking the
 "Saved Jobs" link at the top of the job feed. Each user only sees their own bookmarks.
 If nothing is saved yet, the page shows "You haven't saved any jobs yet."
-
+### US4.3: Remove a bookmark
+Each job on the Saved Jobs page has a **Remove** button. Clicking it removes the bookmark
+and keeps you on the Saved Jobs page, so the list only shows jobs you still want.
 ### US5.1–US5.6: Job alerts
 Logged-in users can create alerts from keywords, location, or job type on the Alerts page,
 choose email or in-app notifications, pick instant or daily delivery, and pause, edit, or
@@ -135,6 +137,7 @@ This section records where and when team members used AI assistance: the tool us
 | Riley | Claude (Anthropic) | US5.1–US5.6 alerts: models, API, alert matching command, email delivery, Alerts and Notification History pages, tests, design and plan docs | Used to draft and review the code; I reviewed, tested, edited, and committed the final work |
 | Nicole | Claude (Anthropic) | Saved Jobs page: view, URL, template, Saved Jobs link on feed, unit tests, Behave setup and scenario, coverage setup, README updates, local and DevEdu setup help | Used as a starting point; I ran the tests first to confirm they failed (TDD), asked for explanations of each piece, adjusted tests to match our team's data, checked the page in the browser, and committed the final work |
 | Seth | Codex (OpenAI) | US2.2 AI resume feedback service, protected view, templates, Behave scenario, and Django tests | Used for guidance and initial code suggestions; I reviewed the code, tested the real website flow, and verified the full test suite and coverage |
+| Nicole | Claude (Anthropic) | US4.3 remove bookmark: Remove button, redirect back to Saved Jobs, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), checked the page in the browser, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes
