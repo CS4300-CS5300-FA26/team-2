@@ -182,7 +182,7 @@
                 </form>
 
                 <!-- US4.3: Remove button takes this job off my saved list -->
-                <form method="post" action="/feed/{{ listing.id }}/remove/">
+                <form method="post" action="/feed/{{ listing.id }}/remove/" onsubmit="return confirm('Remove this job and its notes?');">
                     {% csrf_token %}
 
                     <!-- tells the view to come back to Saved Jobs, not the feed -->
