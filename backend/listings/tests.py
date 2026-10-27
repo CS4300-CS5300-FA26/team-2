@@ -280,6 +280,20 @@ class RemoveFromSavedPageTests(TestCase):
         self.assertTrue(Bookmark.objects.filter(user=other_user, listing=self.listing).exists())
 
 
+    # TEST 6: the Remove button asks "are you sure?" first,
+    # because removing a job also deletes its notes
+    def test_remove_asks_for_confirmation(self):
+        response = self.client.get("/saved/")
+
+        # check the popup is attached to THIS job's Remove form,
+        # not just that the words appear somewhere on the page
+        self.assertContains(
+            response,
+            f'<form method="post" action="{self.remove_url}" '
+            f'onsubmit="return confirm(\'Remove this job and its notes?\');">',
+        )
+
+
 #Sprint 2
 # Tests for US4.4: private notes on a saved job
 # A saved job can have MANY notes, and each note has its own x to delete it
