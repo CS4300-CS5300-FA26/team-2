@@ -285,7 +285,13 @@ class RemoveFromSavedPageTests(TestCase):
     def test_remove_asks_for_confirmation(self):
         response = self.client.get("/saved/")
 
-        self.assertContains(response, "Remove this job and its notes?")
+        # check the popup is attached to THIS job's Remove form,
+        # not just that the words appear somewhere on the page
+        self.assertContains(
+            response,
+            f'<form method="post" action="{self.remove_url}" '
+            f'onsubmit="return confirm(\'Remove this job and its notes?\');">',
+        )
 
 
 #Sprint 2
