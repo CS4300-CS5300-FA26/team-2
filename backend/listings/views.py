@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .models import Bookmark, Listing
+from .models import Bookmark, Listing, Note
 
 
 # This shows the job feed page.
@@ -50,6 +50,11 @@ def remove_bookmark(request, listing_id):
     # delete this user's bookmark for this listing.
     # if it's already gone, this just does nothing, so clicking twice is fine
     Bookmark.objects.filter(user=request.user, listing=listing).delete()
+    
+    # US4.3: the Remove button on the Saved Jobs page sends next="saved",
+    # so send them back to Saved Jobs instead of the feed
+    if request.POST.get("next") == "saved":
+        return redirect("/saved/")
 
     return redirect("/feed/")
 
@@ -57,9 +62,55 @@ def remove_bookmark(request, listing_id):
 # Saved Jobs page: shows every job the logged-in user bookmarked
 @login_required  # not logged in? send them to the login page
 def saved_jobs(request):
-    # get only the listings that THIS user bookmarked,
-    # newest bookmark first
-    listings = Listing.objects.filter(bookmark__user=request.user).order_by("-bookmark__created_at")
+    # US4.4: start from MY bookmarks, so we can also show my notes.
+    # prefetch_related("notes") loads all the notes at once (faster)
+    bookmarks = (
+        Bookmark.objects.filter(user=request.user)
+        .select_related("listing")
+        .prefetch_related("notes")
+        .order_by("-created_at")
+    )
+
+    # make a list of the saved jobs, and attach my notes to each one
+    listings = []
+    for bookmark in bookmarks:
+        listing = bookmark.listing
+        listing.my_notes = bookmark.notes.all()
+        listings.append(listing)
 
     # send those listings to the saved_jobs.html page
     return render(request, "listings/saved_jobs.html", {"listings": listings})
+
+
+#Sprint 2
+# US4.4: add a new private note to one of my saved jobs
+@login_required  # not logged in? send them to the login page
+@require_POST    # only the form can add a note, not just visiting the address
+def add_note(request, listing_id):
+    # find MY bookmark for this job.
+    # if I haven't saved this job, this gives a 404 page,
+    # so nobody can add a note to someone else's bookmark
+    bookmark = get_object_or_404(Bookmark, user=request.user, listing_id=listing_id)
+
+    # get the text from the form (empty if missing) and remove extra spaces
+    text = request.POST.get("note", "").strip()
+
+    # only save it if they actually typed something
+    if text:
+        Note.objects.create(bookmark=bookmark, text=text)
+
+    # go back to the Saved Jobs page
+    return redirect("/saved/")
+
+
+# US4.4: delete one of my notes (the little x)
+@login_required
+@require_POST    # only the x button can delete, not just visiting the address
+def delete_note(request, note_id):
+    # find the note, but ONLY if it's on one of MY bookmarks.
+    # someone else's note gives a 404, so they can't delete it
+    note = get_object_or_404(Note, id=note_id, bookmark__user=request.user)
+
+    note.delete()
+
+    return redirect("/saved/")
