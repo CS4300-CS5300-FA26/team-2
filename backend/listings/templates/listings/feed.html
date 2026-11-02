@@ -121,6 +121,23 @@
         }
         /* End of CredScore showing reasons on hover */
 
+        /* Start of Filter */
+        .filter {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+
+            /* set size */
+            width: 20px;
+            height: 20px;
+        }
+
+        .filter:hover {
+            background-color: #eee;
+            border-radius: 50%;
+        }
+
         /* remove the default gray button box */
         .bookmark-button {
             background: none;
@@ -134,6 +151,11 @@
             background-color: #eee;
             border-radius: 50%;
         }
+
+        /* Get rid of the ugly-ass triangle on details */
+        details > summary {
+            list-style: none;
+        }
     </style>
 </head>
 <body>
@@ -143,6 +165,24 @@
 
         <!-- link to the page with all my bookmarked jobs -->
         <a href="/saved/">Saved Jobs</a>
+    </div>
+
+    <!-- Another layer between listings and header for filtering and sorting -->
+    <div class="options" style="display: flex; justify-content: space-between; align-items: right;">
+        <!-- On right-hand-side: filter button-->
+        <!-- Oh shit this exists that's really cool -->
+        <details>
+            <summary class="filter">
+                <!-- Found from https://www.svgrepo.com/svg/506489/filter -->
+                <svg width = "24" height="24" viewBox="0 0 24 24" stroke="black" stroke-width="2" fill="black"> 
+                    <path d="M14 20.5H10C9.80189 20.4974 9.61263 20.4176 9.47253 20.2775C9.33244 20.1374 9.25259 19.9481 9.25 19.75V12L3.9 4.69C3.81544 4.58007 3.76395 4.44832 3.75155 4.31018C3.73915 4.17204 3.76636 4.03323 3.83 3.91C3.89375 3.78712 3.98984 3.68399 4.10792 3.61173C4.226 3.53947 4.36157 3.50084 4.5 3.5H19.5C19.6384 3.50084 19.774 3.53947 19.8921 3.61173C20.0101 3.68399 20.1062 3.78712 20.17 3.91C20.2336 4.03323 20.2608 4.17204 20.2484 4.31018C20.236 4.44832 20.1846 4.58007 20.1 4.69L14.75 12V19.75C14.7474 19.9481 14.6676 20.1374 14.5275 20.2775C14.3874 20.4176 14.1981 20.4974 14 20.5ZM10.75 19H13.25V11.75C13.2492 11.5907 13.302 11.4357 13.4 11.31L18 5H6L10.62 11.31C10.718 11.4357 10.7708 11.5907 10.77 11.75L10.75 19Z" fill="#000000">
+                    </path> 
+                </svg>
+            </summary>
+            <div class="filter-dropdown"> 
+                <p>Dropdown works if this doesn't appear until button is pressed</p>
+            </div>
+        </details>
     </div>
 
     <!-- show each listing from the database -->
