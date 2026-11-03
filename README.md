@@ -99,17 +99,15 @@ delete alerts. The Notification History page lists past alerts and the listings 
 triggered them. Matching runs with `python manage.py run_alert_matching` (schedule it hourly).
 Email alerts need the email settings below.
 
-## Azure deployment (web -> api)
+## Azure deployment (gateway -> web + api)
 
-The browser only talks to `app-pathfinder-prod-web`. Its `frontend/server.mjs` (started with
-`node server.mjs`) serves the Vite build with an SPA fallback (deep links like `/feed` work) and
-reverse-proxies `/api/`, `/admin/`, `/static/`, `/media/` to `app-pathfinder-prod-api` (override with
-`API_ORIGIN`, `PROXY_PREFIXES`). One origin means no CORS and plain same-site session/CSRF cookies; the frontend
-uses relative URLs. Django must therefore expose every JSON endpoint under `/api/` (SPA routes must not use a proxied
-prefix). The proxy forwards the web hostname as `X-Forwarded-Host`; `prod.py` allows both hostnames and
-trusts the web origin for CSRF. The API startup command is `sh startup.sh` (migrate, collectstatic, gunicorn);
-Azure app settings needed: `DJANGO_SETTINGS_MODULE=pathfinder.settings.prod`, `SECRET_KEY`, `DATABASE_URL`,
-`SCM_DO_BUILD_DURING_DEPLOYMENT=true`.
+All UI is React (`frontend/`), served by `app-pathfinder-prod-web` (`pm2 serve --spa`). The public
+origin is the nginx gateway (`app-pathfinder-prod-gateway`, `path-finders.app`), which sends only
+`/api/`, `/admin/`, `/static/` and `/media/` to Django (`app-pathfinder-prod-api`) and everything
+else to the React app, so `/login`, `/feed`, `/saved` and `/resumes/...` are client-side routes.
+Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform`; deploys run from
+`.github/workflows/deploy.yml` on pushes to `main`. In local dev, Vite proxies the same prefixes to
+`localhost:8000` (`API_ORIGIN` overrides it).
 
 ## Deployment settings (Railway)
 
