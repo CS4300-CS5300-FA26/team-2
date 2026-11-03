@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "ai_intelligence",
     "listings",
     "tracking",
+    "behave_django",
 ]
 
 MIDDLEWARE = [

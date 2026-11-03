@@ -1,10 +1,14 @@
 from tempfile import TemporaryDirectory
-
+from unittest.mock import MagicMock, patch
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
-
+from .services import (
+    ResumeFeedbackError,
+    create_file_data,
+    get_resume_feedback,
+)
 from .models import Resume
 
 
@@ -33,6 +37,20 @@ class ResumeUploadTests(TestCase):
 
     def sign_in(self):
         self.client.force_login(self.user)
+
+    def create_resume(self, owner=None, filename="resume.pdf"):
+        """
+        Creates a resume that can be reused by feedback tests
+        """
+
+        return Resume.objects.create(
+            owner=owner or self.user,
+            file=SimpleUploadedFile(
+                filename,
+                b"%PDF-1.4 test file",
+                content_type="application/pdf",
+            ),
+        )
 
     def post_upload(self, filename, content, content_type, follow=False):
         uploaded_file = SimpleUploadedFile(
@@ -99,3 +117,183 @@ class ResumeUploadTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertNotContains(response, "private-resume.pdf")
+
+
+    def test_feedback_requires_login(self):
+        resume = self.create_resume()
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[resume.id],
+        )
+
+        response = self.client.post(feedback_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            response.url.startswith(reverse("login"))
+        )
+    @patch("resumes.views.get_resume_feedback")
+    def test_user_receives_feedback_for_their_resume(
+        self,
+        feedback_function,
+    ):
+        resume = self.create_resume()
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[resume.id],
+        )
+        feedback_function.return_value = (
+            "- Add numbers to show your results"
+        )
+        self.sign_in()
+
+        response = self.client.post(feedback_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "Add numbers to show your results",
+        )
+        feedback_function.assert_called_once_with(resume)
+
+
+    @patch("resumes.views.get_resume_feedback")
+    def test_user_cannot_request_feedback_for_another_resume(
+        self,
+        feedback_function,
+    ):
+        other_user = self.create_user("other-user")
+        other_resume = self.create_resume(
+            owner=other_user,
+            filename="private-resume.pdf",
+        )
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[other_resume.id],
+        )
+        self.sign_in()
+
+        response = self.client.post(feedback_url)
+
+        self.assertEqual(response.status_code, 404)
+        feedback_function.assert_not_called()
+
+
+    @patch("resumes.views.get_resume_feedback")
+    def test_ai_error_returns_to_upload_page(
+        self,
+        feedback_function,
+    ):
+        resume = self.create_resume()
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[resume.id],
+        )
+        feedback_function.side_effect = ResumeFeedbackError(
+            "AI provider failed"
+        )
+        self.sign_in()
+
+        response = self.client.post(
+            feedback_url,
+            follow=True,
+        )
+
+        self.assertRedirects(response, self.url)
+        self.assertContains(
+            response,
+            "AI feedback is unavailable right now",
+        )
+
+
+    @patch("resumes.views.get_resume_feedback")
+    def test_feedback_rejects_get_requests(
+        self,
+        feedback_function,
+    ):
+        resume = self.create_resume()
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[resume.id],
+        )
+        self.sign_in()
+
+        response = self.client.get(feedback_url)
+
+        self.assertEqual(response.status_code, 405)
+        feedback_function.assert_not_called()
+
+
+    def test_upload_page_has_feedback_button(self):
+        resume = self.create_resume()
+        feedback_url = reverse(
+            "resumes:feedback",
+            args=[resume.id],
+        )
+        self.sign_in()
+
+        response = self.client.get(self.url)
+
+        self.assertContains(response, "Get AI feedback")
+        self.assertContains(response, feedback_url)
+
+    def test_resume_file_is_prepared_for_openai(self):
+        resume = self.create_resume()
+
+        file_data = create_file_data(resume)
+
+        self.assertTrue(
+            file_data.startswith(
+                "data:application/pdf;base64,"
+            )
+        )
+
+    @patch("resumes.services.OpenAI")
+    def test_service_returns_openai_feedback(
+        self,
+        openai_class,
+    ):
+        resume = self.create_resume()
+        fake_response = MagicMock()
+        fake_response.output_text = (
+            "- Make your experience more specific"
+        )
+        openai_class.return_value.responses.create.return_value = (
+            fake_response
+        )
+
+        feedback = get_resume_feedback(resume)
+
+        self.assertEqual(
+            feedback,
+            "- Make your experience more specific",
+        )
+        openai_class.return_value.responses.create.assert_called_once()
+
+    @patch("resumes.services.OpenAI")
+    def test_service_rejects_empty_feedback(
+        self,
+        openai_class,
+    ):
+        resume = self.create_resume()
+        fake_response = MagicMock()
+        fake_response.output_text = "   "
+        openai_class.return_value.responses.create.return_value = (
+            fake_response
+        )
+
+        with self.assertRaises(ResumeFeedbackError):
+            get_resume_feedback(resume)
+
+    @patch("resumes.services.OpenAI")
+    def test_service_handles_openai_errors(
+        self,
+        openai_class,
+    ):
+        resume = self.create_resume()
+        openai_class.return_value.responses.create.side_effect = (
+            RuntimeError("Provider failed")
+        )
+
+        with self.assertRaises(ResumeFeedbackError):
+            get_resume_feedback(resume)

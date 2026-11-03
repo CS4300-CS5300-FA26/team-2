@@ -14,6 +14,7 @@ def api_root(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/", api_root),
+    path("api/", include("tracking.urls")),
     # temporary login page using Django's built in LoginView (works for any user, not just staff)
     path(
         "accounts/login/",
@@ -23,11 +24,21 @@ urlpatterns = [
     path("resumes/", include("resumes.urls")),
     # sign-up page (US1.1)
     path("accounts/signup/", account_views.signup, name="signup"),
+    # sign-up step 2: fill in the profile (US1.2)
+    path("accounts/signup/profile/", account_views.signup_profile, name="signup_profile"),
     #Run feed view when someone visits the site
     path("feed/", listing_views.feed),
     # clicking an empty bookmark saves it, clicking a filled one removes it
     path("feed/<int:listing_id>/save/", listing_views.save_bookmark),
     path("feed/<int:listing_id>/remove/", listing_views.remove_bookmark),
+    #When someone goes to /saved/, Django runs the saved_jobs function to show their saved jobs page.
+    path("saved/", listing_views.saved_jobs),
+    #When someone clicks apply button on the filter dropdown, Django runs the apply_filters function to filter the feed.
+    path("feed/apply_filters/", listing_views.apply_filters, name="apply_filters"),
+    # US4.4: saving a private note on a saved job
+    path("saved/<int:listing_id>/note/", listing_views.add_note),
+    # US4.4: delete one private note (the little x)
+    path("saved/notes/<int:note_id>/delete/", listing_views.delete_note),
 ]
 
 if settings.DEBUG:

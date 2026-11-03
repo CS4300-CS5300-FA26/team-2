@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: CI checks
+    uses: ./.github/workflows/ci.yml
+
+  deploy-backend:
+    name: Deploy backend (Django API)
+    needs: checks
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-backend
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      # Raw source, not a pre-built artifact. SCM_DO_BUILD_DURING_DEPLOYMENT
+      # is set on the Web App (infra/terraform/app_service.tf), so Oryx
+      # installs requirements.txt and runs collectstatic server-side.
+      - name: Zip backend source
+        run: zip -r ../backend-deploy.zip . -x "*.pyc" -x "*/__pycache__/*" -x "*.git*"
+        working-directory: backend
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-pathfinder-prod-api
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
+          package: backend-deploy.zip
+
+  deploy-frontend:
+    name: Deploy frontend (React)
+    needs: checks
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-frontend
+      cancel-in-progress: false
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      # Raw source, same reasoning as the backend: Oryx runs npm install
+      # and the Vite build server-side on the Web App.
+      - name: Zip frontend source
+        run: zip -r ../frontend-deploy.zip . -x "node_modules/*" -x "dist/*" -x "*.git*"
+        working-directory: frontend
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: app-pathfinder-prod-web
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
+          package: frontend-deploy.zip
