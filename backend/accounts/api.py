@@ -7,6 +7,7 @@ import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from django.http import JsonResponse
+from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
@@ -40,7 +41,8 @@ def _errors(form_errors):
 @require_GET
 @ensure_csrf_cookie
 def csrf(request):
-    return JsonResponse({"detail": "ok"})
+    # token in the body too: a cross-origin page can't read this API's cookie
+    return JsonResponse({"detail": "ok", "csrfToken": get_token(request)})
 
 
 @require_GET

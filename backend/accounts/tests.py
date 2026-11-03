@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 
 User = get_user_model()
 PW = "Tr1cky-Passw0rd!"
@@ -13,6 +13,15 @@ class AuthApiTests(TestCase):
         response = self.client.get("/api/auth/csrf")
         self.assertEqual(response.status_code, 200)
         self.assertIn("csrftoken", response.cookies)
+
+    def test_csrf_enforced_on_login(self):
+        c = Client(enforce_csrf_checks=True)
+        body = {"username": "u", "password": PW}
+        User.objects.create_user(username="u", password=PW)
+        self.assertEqual(c.post("/api/auth/login", body, content_type="application/json").status_code, 403)
+        token = c.get("/api/auth/csrf").json()["csrfToken"]
+        response = c.post("/api/auth/login", body, content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 200)
 
     def test_me_logged_out_and_in(self):
         self.assertEqual(self.client.get("/api/auth/me").json(), {"user": None})

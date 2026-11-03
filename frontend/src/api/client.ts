@@ -16,12 +16,18 @@ export class ApiError extends Error {
 const cookie = (name: string) =>
   document.cookie.split("; ").find((r) => r.startsWith(`${name}=`))?.slice(name.length + 1);
 
+// Used when the cookie is unreadable (cross-origin API); same-origin reads the cookie.
+let csrfToken = "";
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (method !== "GET") {
-    if (!cookie("csrftoken")) await fetch(`${BASE}/api/auth/csrf`, { credentials: "include" });
-    headers["X-CSRFToken"] = decodeURIComponent(cookie("csrftoken") ?? "");
+    if (!cookie("csrftoken") && !csrfToken) {
+      const r = await fetch(`${BASE}/api/auth/csrf`, { credentials: "include" });
+      csrfToken = (await r.json().catch(() => ({})))?.csrfToken ?? "";
+    }
+    headers["X-CSRFToken"] = decodeURIComponent(cookie("csrftoken") ?? "") || csrfToken;
   }
   const res = await fetch(`${BASE}${path}`, {
     method,
