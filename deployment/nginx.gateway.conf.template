@@ -25,11 +25,12 @@ server {
         add_header Content-Type text/plain;
     }
 
-    # Everything Django serves server-side: API, admin, the legacy
-    # templated account/feed/resume pages, and Django's own static/media.
+    # Everything Django serves server-side: API, admin, and Django's own
+    # static/media. All UI pages (/login, /feed, /saved, /resumes/...) are
+    # React routes served by the frontend, so they must NOT be listed here.
     # proxy_ssl_server_name is required for SNI since BACKEND_HOST is a
     # variable, not a literal nginx resolves once at config-load time.
-    location ~ ^/(api|admin|accounts|feed|resumes|static|media)/ {
+    location ~ ^/(api|admin|static|media)/ {
         set $backend https://${BACKEND_HOST};
         proxy_pass $backend;
         proxy_ssl_server_name on;

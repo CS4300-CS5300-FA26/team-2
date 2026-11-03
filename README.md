@@ -45,10 +45,17 @@ and open your DevEdu app link (with the page address at the end) instead of loca
 | Alerts | Alerts tab in the React app | Create, edit, pause, and delete job alerts |
 | Notification history | Notification History tab in the React app | See past alerts and the listings that triggered them |
 | Admin | `/admin/` | Add listings and manage users (superusers only) |
+| Saved Jobs | `/saved/` | See all the listings you bookmarked in one place |
 
 ### Running the tests
 
 `cd backend`, then `python manage.py test`
+
+To run the Behave (BDD) scenarios:
+`cd backend`, then `python manage.py behave`
+
+To check test coverage:
+`coverage run manage.py test`, then `coverage report`
 
 Tests also run automatically on GitHub (GitHub Actions) for every push and pull request.
 
@@ -62,12 +69,28 @@ or all numbers) are rejected. After signing up, users are logged in and sent to 
 Logged-in users can upload a resume (PDF, DOC, or DOCX, up to 5 MB) at `/resumes/upload/`.
 Each user only sees their own uploads.
 
+### US2.2: AI resume feedback
+Logged-in users can request AI feedback for one of their uploaded resumes
+The feedback page provides simple suggestions about what could be improved
+Users can only request feedback for resumes they own
+
 ### US3.1: Credibility score
 Each listing can have a credibility score, added through the admin page.
 
 ### US4.1: Bookmark a listing
 On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
 and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
+### US4.2: Saved Jobs Page
+Logged-in users can see all their bookmarked listings at `/saved/`, or by clicking the
+"Saved Jobs" link at the top of the job feed. Each user only sees their own bookmarks.
+If nothing is saved yet, the page shows "You haven't saved any jobs yet."
+### US4.3: Remove a bookmark
+Each job on the Saved Jobs page has a **Remove** button. Clicking it removes the bookmark
+and keeps you on the Saved Jobs page, so the list only shows jobs you still want.
+### US4.4: Private notes on a saved job
+Each job on the Saved Jobs page has a note box. Type why you saved the job and click
+**Add note**. You can add as many notes as you want, and each one has a small **×** to
+delete it. Notes are saved on your bookmark, so only you can see them.
 
 ### US5.1–US5.6: Job alerts
 Logged-in users can create alerts from keywords, location, or job type on the Alerts page,
@@ -112,11 +135,15 @@ This section records where and when team members used AI assistance: the tool us
 | Seth | Claude (Anthropic) | Generating the images used in the Lo-Fi UI Alignment section (Section 3.3). | Used as a starting point, then adjusted by the team |
 | Nicole | Claude (Anthropic) | Generating ways to word the Gherkin Acceptance Criteria | Used as a starting point, then adjusted by the team |
 | Riley | Claude (Anthropic) | Templating [specify: e.g., the document/section structure or formatting and grammar] | Used as a starting template, then filled in and edited by the team |
-| Nicole Vance | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
+| Nicole | Claude (Anthropic) | US4.1 bookmark feature: models, views, template, CSS, tests, README setup steps, DevEdu setup help | Used as a starting point; I reviewed, tested, and edited the code |
 | Seth | Codex (OpenAI) | Deployment planning, Railway configuration, Docker/Nginx gateway, GitHub Actions CI, and gateway test troubleshooting | Used for guidance and initial code suggestions, then I reviewed, tested, and committed the final work |
 | Dominick | Claude (Anthropic) | US1.1 sign-up page: view, sign-up and login templates, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Seth | Codex (OpenAI) | US2.1 resume upload model, form, view, URLs, template, testing, and troubleshooting | Used for guidance and initial code suggestions, then I reviewed, tested, and committed the final work |
 | Riley | Claude (Anthropic) | US5.1–US5.6 alerts: models, API, alert matching command, email delivery, Alerts and Notification History pages, tests, design and plan docs | Used to draft and review the code; I reviewed, tested, edited, and committed the final work |
+| Nicole | Claude (Anthropic) | Saved Jobs page: view, URL, template, Saved Jobs link on feed, unit tests, Behave setup and scenario, coverage setup, README updates, local and DevEdu setup help | Used as a starting point; I ran the tests first to confirm they failed (TDD), asked for explanations of each piece, adjusted tests to match our team's data, checked the page in the browser, and committed the final work |
+| Seth | Codex (OpenAI) | US2.2 AI resume feedback service, protected view, templates, Behave scenario, and Django tests | Used for guidance and initial code suggestions; I reviewed the code, tested the real website flow, and verified the full test suite and coverage |
+| Nicole | Claude (Anthropic) | US4.3 remove bookmark: Remove button, redirect back to Saved Jobs, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), checked the page in the browser, and committed the final work |
+| Nicole Vance | Claude (Anthropic) | US4.4 private notes: Note model and migrations, add and delete note views, URLs, two-column Saved Jobs layout, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), changed the design to allow multiple notes with a delete x, checked the page in the browser, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes

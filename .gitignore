@@ -55,3 +55,6 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+
+# Coverage results (made by running coverage)
+.coverage

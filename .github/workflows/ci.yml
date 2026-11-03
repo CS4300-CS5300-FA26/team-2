@@ -79,8 +79,34 @@ jobs:
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Run Django tests
-        run: python manage.py test
+      #Added coverage and Behave
+      - name: Run Django tests with coverage
+        run: coverage run manage.py test
+
+      - name: Show coverage report
+        run: coverage report
+
+      - name: Run Behave (BDD) scenarios
+        run: python manage.py behave
+
+  frontend-gateway:
+    name: Test frontend gateway routes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build frontend gateway image
+        run: docker build --file deployment/frontend.Dockerfile --tag pathfinder-frontend-gateway .
+
+      - name: Run gateway integration test
+        run: python .github/scripts/test_gateway.py pathfinder-frontend-gateway
 
   lint-workflows:
     name: Lint GitHub Actions workflows
@@ -90,9 +116,6 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
-      # Regression test for the pipeline itself: catches broken workflow
-      # YAML (bad job refs, invalid expressions, shellcheck issues in run:
-      # steps) before merge, same role `manage.py check` plays for Django.
       - name: Run actionlint
         uses: reviewdog/action-actionlint@v1
         with:
