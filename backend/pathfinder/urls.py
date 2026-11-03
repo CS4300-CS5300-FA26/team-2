@@ -26,6 +26,8 @@ urlpatterns = [
     path("accounts/signup/", account_views.signup, name="signup"),
     # sign-up step 2: fill in the profile (US1.2)
     path("accounts/signup/profile/", account_views.signup_profile, name="signup_profile"),
+    # sign-up step 3: enter the code from the email (US1.3)
+    path("accounts/signup/verify/", account_views.signup_verify, name="signup_verify"),
     #Run feed view when someone visits the site
     path("feed/", listing_views.feed),
     # clicking an empty bookmark saves it, clicking a filled one removes it

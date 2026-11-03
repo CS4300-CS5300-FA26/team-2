@@ -44,7 +44,7 @@
             font-size: 26px;
         }
 
-        /* "Step 1 of 2" label so the user knows where they are */
+        /* "Step 1 of 3" label so the user knows where they are */
         .step {
             margin: 0 0 4px 0;
             font-size: 13px;
@@ -136,6 +136,21 @@
             color: #6b7280;
         }
 
+        /* "Resend code" looks like a link, not a big button */
+        .footer .link-button {
+            width: auto;
+            padding: 0;
+            margin: 0;
+            font-size: 14px;
+            color: #4f46e5;
+            background: none;
+        }
+
+        .footer .link-button:hover {
+            background: none;
+            text-decoration: underline;
+        }
+
         .footer a {
             color: #4f46e5;
             font-weight: 600;
@@ -147,7 +162,7 @@
 
     <div class="card">
         <p class="brand">Pathfinder</p>
-        <p class="step">{{ step|default:"Step 1 of 2" }}</p>
+        <p class="step">{{ step|default:"Step 1 of 3" }}</p>
         <h1>{{ heading|default:"Sign up" }}</h1>
         <p class="subtitle">{{ subtitle|default:"Create your account to start saving jobs." }}</p>
 
@@ -173,6 +188,17 @@
 
             <button type="submit">{{ button|default:"Create account" }}</button>
         </form>
+
+        <!-- step 3 (US1.3): ask for a new code if the email didn't arrive -->
+        {% if can_resend %}
+            {% if sent_again %}
+                <p class="footer" role="status">We emailed you a new code.</p>
+            {% endif %}
+            <form method="post" class="footer">
+                {% csrf_token %}
+                Didn't get it? <button type="submit" name="resend" class="link-button">Resend code</button>
+            </form>
+        {% endif %}
 
         <!-- only on step 1, since by step 2 the user is already logged in -->
         {% if not step %}
