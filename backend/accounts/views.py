@@ -18,6 +18,8 @@ def signup(request):
             # save the new user, then log them in right away
             user = form.save()
             login(request, user)
+            # remember they still owe step 2 (ProfileStepMiddleware checks this)
+            request.session["profile_pending"] = True
 
             # next step: fill in the profile (US1.2)
             return redirect("signup_profile")
@@ -38,6 +40,7 @@ def signup_profile(request):
 
         if form.is_valid():
             form.save()
+            request.session.pop("profile_pending", None)
             return redirect("/feed/")
     else:
         form = ProfileForm(instance=request.user)

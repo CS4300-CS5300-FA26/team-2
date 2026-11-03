@@ -15,3 +15,11 @@ class ProfileForm(forms.ModelForm):
         # User allows these to be blank, but the profile step needs all of them
         for field in self.fields.values():
             field.required = True
+
+    # two accounts can't share an email; "Ada@x.com" counts as the same as "ada@x.com"
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        taken = get_user_model().objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
