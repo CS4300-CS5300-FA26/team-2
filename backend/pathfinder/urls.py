@@ -33,6 +33,8 @@ urlpatterns = [
     path("feed/<int:listing_id>/remove/", listing_views.remove_bookmark),
     #When someone goes to /saved/, Django runs the saved_jobs function to show their saved jobs page.
     path("saved/", listing_views.saved_jobs),
+    #When someone clicks apply button on the filter dropdown, Django runs the apply_filters function to filter the feed.
+    path("feed/apply_filters/", listing_views.apply_filters, name="apply_filters"),
 ]
 
 if settings.DEBUG:

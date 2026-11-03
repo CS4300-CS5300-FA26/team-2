@@ -353,20 +353,25 @@
                     <h5>Sort listings by:</h5>
                     <!-- Each option for sorting has a div to make it easy to style -->
                     <div class="sort-by-options">
-                        <label for="sort-by-date-dec">Date posted (dec)</label>
-                        <input type="radio" id="sort-by-date-dec" name="sort-by">
+                        <label for="sort-by-date-desc">Date posted (desc)</label>
+                        <!-- form= allows the form further down to see the value chosen -->
+                        <input type="radio" id="sort-by-date-desc" name="sort_by" value="date-desc"
+                            form="apply-filter-form" checked>
                     </div>
                     <div class="sort-by-options">
                         <label for="sort-by-date-asc">Date posted (asc)</label>
-                        <input type="radio" id="sort-by-date-asc" name="sort-by">
+                        <input type="radio" id="sort-by-date-asc" name="sort_by" value="date-asc"
+                            form="apply-filter-form">
                     </div>
                     <div class="sort-by-options">
-                        <label for="sort-by-score-dec">Score (dec)</label>
-                        <input type="radio" id="sort-by-score-dec" name="sort-by">
+                        <label for="sort-by-score-desc">Score (desc)</label>
+                        <input type="radio" id="sort-by-score-desc" name="sort_by" value="score-desc"
+                            form="apply-filter-form">
                     </div>
                     <div class="sort-by-options">
                         <label for="sort-by-score-asc">Score (asc)</label>
-                        <input type="radio" id="sort-by-score-asc" name="sort-by">
+                        <input type="radio" id="sort-by-score-asc" name="sort_by" value="score-asc"
+                            form="apply-filter-form">
                     </div>
                 </div>
                 <!-- Filtering section on right of dropdown -->
@@ -380,21 +385,26 @@
                             <div class="doublerange">
                                 <!-- Dual sliders -->
                                 <div class="doublerangesliders">
-                                    <input id="minslider" type="range" value="40" min="0" max="100">
-                                    <input id="maxslider" type="range" value="40" min="0" max="100">
+                                    <input id="minslider" type="range" name="min_score" value="0"
+                                        min="0" max="100" form="apply-filter-form">
+                                    <input id="maxslider" type="range" name="max_score" value="100"
+                                        min="0" max="100" form="apply-filter-form">
                                 </div>
                             </div>
                             <!-- Values of the sliders -->
                             <div id="range-values">
-                                <output id="minvalue" for="minslider">40</output>
-                                <output id="maxvalue" for="maxslider">40</output>
+                                <output id="minvalue" for="minslider">0</output>
+                                <output id="maxvalue" for="maxslider">100</output>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- Apply button -->
                 <div id="filter-submit">
-                    <button type="submit">Apply</button>
+                    <form id="apply-filter-form" method="post" action="/feed/apply_filters/">
+                        {% csrf_token %}
+                        <button type="submit">Apply</button>
+                    </form>
                 </div>
             </div>
         </details>
