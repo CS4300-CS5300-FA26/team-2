@@ -191,8 +191,8 @@
 
         <!-- step 3 (US1.3): ask for a new code if the email didn't arrive -->
         {% if can_resend %}
-            {% if sent_again %}
-                <p class="footer" role="status">We emailed you a new code.</p>
+            {% if status %}
+                <p class="footer" role="status">{{ status }}</p>
             {% endif %}
             <form method="post" class="footer">
                 {% csrf_token %}

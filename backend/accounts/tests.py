@@ -1,6 +1,11 @@
+from datetime import timedelta
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
 
 from .models import EmailVerification
 
@@ -42,6 +47,12 @@ class SignupPageTests(TestCase):
 
         self.assertRedirects(self.client.get("/feed/"), "/accounts/signup/profile/")
         self.assertRedirects(self.client.get("/saved/"), "/accounts/signup/profile/")
+
+        # logging out and back in doesn't get around it
+        self.client.logout()
+        self.client.login(username="newuser", password="Tr1cky-Passw0rd!")
+        self.assertRedirects(self.client.get("/feed/"), "/accounts/signup/profile/")
+        self.assertRedirects(self.client.get("/accounts/signup/verify/"), "/accounts/signup/profile/")
 
         self.client.post("/accounts/signup/profile/", {
             "first_name": "Ada",
@@ -227,17 +238,17 @@ class SignupVerifyStepTests(TestCase):
         self.assertContains(response, "That code is not correct")
         self.assertRedirects(self.client.get("/feed/"), "/accounts/signup/verify/")
 
-    # TEST 6: too many wrong codes replaces the code with a new emailed one
-    def test_too_many_wrong_codes_sends_new_code(self):
+    # TEST 6: after 5 wrong codes even the right code stops working
+    # until a new one is requested
+    def test_too_many_wrong_codes_locks_code(self):
         wrong = "000000" if self.code != "000000" else "111111"
         for _ in range(5):
             response = self.client.post("/accounts/signup/verify/", {"code": wrong})
+        self.assertContains(response, "Too many wrong codes")
 
-        self.assertContains(response, "We emailed you a new one")
-        self.assertEqual(len(mail.outbox), 2)
-        pending = EmailVerification.objects.get(user=self.user)
-        self.assertEqual(pending.attempts, 0)
-        self.assertIn(pending.code, mail.outbox[1].body)
+        response = self.client.post("/accounts/signup/verify/", {"code": self.code})
+        self.assertContains(response, "Too many wrong codes")
+        self.assertRedirects(self.client.get("/feed/"), "/accounts/signup/verify/")
 
     # TEST 7: someone who isn't logged in is sent to the login page
     def test_verify_step_needs_login(self):
@@ -246,9 +257,16 @@ class SignupVerifyStepTests(TestCase):
 
         self.assertRedirects(response, "/accounts/login/?next=/accounts/signup/verify/")
 
+    # helper: pretend the last code was emailed this many minutes ago
+    def age_code(self, minutes):
+        EmailVerification.objects.filter(user=self.user).update(
+            sent_at=timezone.now() - timedelta(minutes=minutes)
+        )
+
     # TEST 8: "Resend code" emails a new code and the old one stops working
     def test_resend_code(self):
         old_code = self.code
+        self.age_code(2)
         response = self.client.post("/accounts/signup/verify/", {"resend": ""})
 
         self.assertEqual(response.status_code, 200)
@@ -262,3 +280,59 @@ class SignupVerifyStepTests(TestCase):
             self.assertContains(response, "That code is not correct")
         response = self.client.post("/accounts/signup/verify/", {"code": new_code})
         self.assertRedirects(response, "/feed/")
+
+    # TEST 9: "Resend code" sends at most one email a minute
+    def test_resend_has_cooldown(self):
+        response = self.client.post("/accounts/signup/verify/", {"resend": ""})
+
+        self.assertContains(response, "Wait a minute")
+        self.assertEqual(len(mail.outbox), 1)
+        # the code they already have still works
+        self.assertEqual(EmailVerification.objects.get(user=self.user).code, self.code)
+
+    # TEST 10: a code older than 10 minutes doesn't work; Resend gets a new one
+    def test_expired_code_is_rejected(self):
+        self.age_code(11)
+        response = self.client.post("/accounts/signup/verify/", {"code": self.code})
+
+        self.assertContains(response, "That code has expired")
+        self.assertRedirects(self.client.get("/feed/"), "/accounts/signup/verify/")
+
+        self.client.post("/accounts/signup/verify/", {"resend": ""})
+        new_code = EmailVerification.objects.get(user=self.user).code
+        response = self.client.post("/accounts/signup/verify/", {"code": new_code})
+        self.assertRedirects(response, "/feed/")
+
+
+class UniqueEmailDatabaseTests(TestCase):
+
+    # TEST 1: the database itself refuses a second account with the same
+    # email (any capitals), even if the form check is skipped
+    def test_database_rejects_duplicate_email(self):
+        User.objects.create_user(username="a", password="pw", email="ada@example.com")
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            User.objects.create_user(username="b", password="pw", email="ADA@example.com")
+
+    # TEST 2: old accounts with no email don't clash with each other
+    def test_blank_emails_are_allowed(self):
+        User.objects.create_user(username="a", password="pw")
+        User.objects.create_user(username="b", password="pw")
+        self.assertEqual(User.objects.filter(email="").count(), 2)
+
+    # TEST 3: if two sign-ups race past the form check, the second one
+    # gets the normal error message instead of a crash
+    def test_race_shows_form_error(self):
+        User.objects.create_user(username="other", password="pw", email="ada@example.com")
+        User.objects.create_user(username="newuser", password="Tr1cky-Passw0rd!")
+        self.client.login(username="newuser", password="Tr1cky-Passw0rd!")
+
+        # pretend the form check ran before "other" saved their email
+        with patch("accounts.forms.ProfileForm.clean_email", lambda form: form.cleaned_data["email"]):
+            response = self.client.post("/accounts/signup/profile/", {
+                "first_name": "Ada",
+                "last_name": "Lovelace",
+                "email": "ada@example.com",
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "An account with this email already exists.")

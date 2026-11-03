@@ -1,16 +1,23 @@
 import secrets
+from datetime import timedelta
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.core.mail import send_mail
+from django.db import IntegrityError, transaction
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from .forms import ProfileForm, VerifyCodeForm
 from .models import EmailVerification
 
-# after this many wrong codes we email a fresh one (US1.3)
+# after this many wrong codes the code stops working (US1.3)
 MAX_CODE_ATTEMPTS = 5
+# a code only works for this long after it is emailed (US1.3)
+CODE_LIFETIME = timedelta(minutes=10)
+# at most one code email per this long, so nobody can flood an inbox (US1.3)
+RESEND_COOLDOWN = timedelta(minutes=1)
 
 
 # This shows the sign-up page and creates the account when the form is sent.
@@ -25,8 +32,8 @@ def signup(request):
             # save the new user, then log them in right away
             user = form.save()
             login(request, user)
-            # remember they still owe step 2 (ProfileStepMiddleware checks this)
-            request.session["profile_pending"] = True
+            # remember they still owe steps 2 and 3 (ProfileStepMiddleware checks this)
+            EmailVerification.objects.create(user=user)
 
             # next step: fill in the profile (US1.2)
             return redirect("signup_profile")
@@ -46,11 +53,17 @@ def signup_profile(request):
         form = ProfileForm(request.POST, instance=request.user)
 
         if form.is_valid():
-            form.save()
-            request.session.pop("profile_pending", None)
-            # next step: confirm the email with a code (US1.3)
-            send_verification_code(request.user)
-            return redirect("signup_verify")
+            try:
+                with transaction.atomic():
+                    form.save()
+            except IntegrityError:
+                # someone else saved the same email at the same moment; the
+                # database's unique email index (migration 0003) stopped it
+                form.add_error("email", "An account with this email already exists.")
+            else:
+                # next step: confirm the email with a code (US1.3)
+                send_verification_code(request.user)
+                return redirect("signup_verify")
     else:
         form = ProfileForm(instance=request.user)
 
@@ -64,10 +77,15 @@ def signup_profile(request):
 
 
 # Makes a new random 6-digit code for the user and emails it to them (US1.3).
+# Returns False (and sends nothing) if a code was emailed less than a minute ago.
 def send_verification_code(user):
+    pending = EmailVerification.objects.filter(user=user).first()
+    if pending and pending.code and timezone.now() - pending.sent_at < RESEND_COOLDOWN:
+        return False
+
     code = f"{secrets.randbelow(1000000):06d}"
     EmailVerification.objects.update_or_create(
-        user=user, defaults={"code": code, "attempts": 0}
+        user=user, defaults={"code": code, "attempts": 0, "sent_at": timezone.now()}
     )
     send_mail(
         "Your Pathfinder verification code",
@@ -75,6 +93,7 @@ def send_verification_code(user):
         None,  # sent from DEFAULT_FROM_EMAIL
         [user.email],
     )
+    return True
 
 
 # Step 3 of sign-up (US1.3): the user types in the code from their email.
@@ -86,28 +105,36 @@ def signup_verify(request):
     # nothing to verify (already done), so go straight to the feed
     if pending is None:
         return redirect("/feed/")
+    # no code yet means step 2 isn't done
+    if not pending.code:
+        return redirect("signup_profile")
 
     # the "Resend code" button: email a fresh code and show an empty form
+    status = None
     if request.method == "POST" and "resend" in request.POST:
-        send_verification_code(request.user)
+        if send_verification_code(request.user):
+            status = "We emailed you a new code."
+        else:
+            status = "We just sent you a code. Wait a minute before asking for another."
         form = VerifyCodeForm()
-        sent_again = True
     else:
         form = VerifyCodeForm(request.POST or None)
-        sent_again = False
 
     if request.method == "POST" and form.is_bound and form.is_valid():
-        if form.cleaned_data["code"].strip() == pending.code:
+        if pending.attempts >= MAX_CODE_ATTEMPTS:
+            form.add_error("code", "Too many wrong codes. Click Resend code to get a new one.")
+        elif timezone.now() - pending.sent_at > CODE_LIFETIME:
+            form.add_error("code", "That code has expired. Click Resend code to get a new one.")
+        elif form.cleaned_data["code"].strip() == pending.code:
             pending.delete()
             return redirect("/feed/")
-
-        pending.attempts += 1
-        if pending.attempts >= MAX_CODE_ATTEMPTS:
-            send_verification_code(request.user)
-            form.add_error("code", "Too many wrong codes. We emailed you a new one.")
         else:
+            pending.attempts += 1
             pending.save()
-            form.add_error("code", "That code is not correct. Check your email and try again.")
+            if pending.attempts >= MAX_CODE_ATTEMPTS:
+                form.add_error("code", "Too many wrong codes. Click Resend code to get a new one.")
+            else:
+                form.add_error("code", "That code is not correct. Check your email and try again.")
 
     return render(request, "accounts/signup.html", {
         "form": form,
@@ -116,5 +143,5 @@ def signup_verify(request):
         "subtitle": f"We sent a 6-digit code to {request.user.email}.",
         "button": "Verify",
         "can_resend": True,
-        "sent_again": sent_again,
+        "status": status,
     })
