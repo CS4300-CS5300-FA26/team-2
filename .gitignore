@@ -39,5 +39,22 @@ cs4300
 # Ignore TypeScript build cache files
 frontend/*.tsbuildinfo
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
 # Coverage results (made by running coverage)
 .coverage

@@ -5,7 +5,7 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(public status: number, public data: any) {
-    super(`Request failed: ${status}`);
+    super(data?.detail ?? `Request failed: ${status}`);
   }
   /** Field errors as { field: [msgs] } ("__all__" = non-field), from {"errors": {...}} bodies. */
   get fieldErrors(): Record<string, string[]> {

@@ -25,7 +25,7 @@ function useAuthForm(path: string, onDone: (user: User) => void) {
       setUser(user);
       onDone(user);
     } catch (err) {
-      setErrors(err instanceof ApiError && err.fieldErrors ? err.fieldErrors : { __all__: ["Something went wrong. Try again."] });
+      setErrors(err instanceof ApiError && Object.keys(err.fieldErrors).length ? err.fieldErrors : { __all__: [err instanceof ApiError && err.data?.detail ? err.data.detail : "Something went wrong. Try again."] });
     } finally {
       setBusy(false);
     }

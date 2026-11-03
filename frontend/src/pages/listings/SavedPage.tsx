@@ -88,7 +88,7 @@ export default function SavedPage() {
   }
 
   return (
-    <main className="listings-page">
+    <div className="listings-page">
       <header className="listings-header">
         <h1>Saved Jobs</h1>
         <Link to="/feed">Back to job feed</Link>
@@ -131,6 +131,6 @@ export default function SavedPage() {
         onCancel={() => setConfirming(null)}
         onConfirm={() => confirming && removeJob(confirming)}
       />
-    </main>
+    </div>
   );
 }

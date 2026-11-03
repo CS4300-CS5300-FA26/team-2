@@ -33,7 +33,7 @@ export default function FeedPage() {
   }
 
   return (
-    <main className="listings-page">
+    <div className="listings-page">
       <header className="listings-header">
         <h1>Job Feed</h1>
         <Link to="/saved">Saved Jobs</Link>
@@ -65,6 +65,6 @@ export default function FeedPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }

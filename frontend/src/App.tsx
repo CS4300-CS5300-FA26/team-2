@@ -1,4 +1,4 @@
-import { Link, Navigate, NavLink, Outlet, RouterProvider, createBrowserRouter, useLocation } from "react-router-dom";
+import { Link, Navigate, NavLink, Outlet, RouterProvider, createBrowserRouter, useLocation, useNavigate } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { AuthProvider, useAuth } from "./auth";
 import Button from "./components/Button";
@@ -32,6 +32,10 @@ function RequireAuth({ allowIncomplete, children }: { allowIncomplete?: boolean;
 
 function Layout() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const signOut = async () => {
+    try { await logout(); } finally { navigate("/login", { replace: true }); }
+  };
   const links = pageRoutes
     .filter((r) => (r.handle as Handle | undefined)?.nav && (!(r.handle as Handle).protected || user))
     .sort((a, b) => ((a.handle as Handle).order ?? 100) - ((b.handle as Handle).order ?? 100));
@@ -50,7 +54,7 @@ function Layout() {
             {user ? (
               <>
                 <span>{user.first_name || user.username}</span>
-                <Button size="sm" onClick={() => logout()}>Log out</Button>
+                <Button size="sm" onClick={signOut}>Log out</Button>
               </>
             ) : (
               <>
@@ -86,6 +90,9 @@ const router = createBrowserRouter([
         const h = r.handle as Handle | undefined;
         return h?.protected ? { ...r, element: <RequireAuth allowIncomplete={h.allowIncomplete}>{r.element}</RequireAuth> } : r;
       }),
+      // old Django URLs (bookmarks, emails)
+      { path: "/accounts/login", element: <Navigate to="/login" replace /> },
+      { path: "/accounts/signup", element: <Navigate to="/signup" replace /> },
       { path: "*", element: <NotFound /> },
     ],
   },

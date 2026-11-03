@@ -15,12 +15,13 @@ function csrf(): string {
   return m ? decodeURIComponent(m[1]) : "";
 }
 
-export function call<T>(
+export async function call<T>(
   method: "GET" | "POST",
   path: string,
   body?: FormData,
   onProgress?: (pct: number) => void,
 ): Promise<T> {
+  if (method === "POST" && !csrf()) await fetch("/api/auth/csrf", { credentials: "include" });
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, path);

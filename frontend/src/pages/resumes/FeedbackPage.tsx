@@ -24,7 +24,7 @@ export default function FeedbackPage() {
   }, [id]);
 
   return (
-    <main className="resumes-page">
+    <div className="resumes-page">
       <Link to="/resumes/upload">&larr; Back to your resumes</Link>
       <section className="card">
         <h1>AI resume feedback</h1>
@@ -59,6 +59,6 @@ export default function FeedbackPage() {
           </>
         )}
       </section>
-    </main>
+    </div>
   );
 }

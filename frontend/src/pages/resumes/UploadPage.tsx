@@ -55,7 +55,7 @@ export default function UploadPage() {
 
   const busy = progress !== null;
   return (
-    <main className="resumes-page">
+    <div className="resumes-page">
       <section className="card">
         <h1>Upload your resume</h1>
         <p className="muted">PDF, DOC, or DOCX, up to 5 MB.</p>
@@ -130,6 +130,6 @@ export default function UploadPage() {
           </>
         )}
       </section>
-    </main>
+    </div>
   );
 }

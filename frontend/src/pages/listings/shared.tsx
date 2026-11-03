@@ -14,7 +14,7 @@ export type Listing = {
 
 export function errorText(e: unknown): string {
   const msg = e instanceof Error ? e.message : "";
-  return msg && !/^\d+$/.test(msg) ? msg : "Something went wrong. Please try again.";
+  return msg && !/^Request failed/.test(msg) ? msg : "Something went wrong. Please try again.";
 }
 
 // Redirects to /login on a 401 from any API call; returns true if it did.
@@ -23,7 +23,7 @@ export function useAuthRedirect() {
   return (e: unknown) => {
     const err = e as { status?: number };
     if (err?.status === 401) {
-      navigate("/login");
+      navigate(`/login?next=${encodeURIComponent(window.location.pathname)}`);
       return true;
     }
     return false;
