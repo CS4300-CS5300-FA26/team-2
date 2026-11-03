@@ -35,6 +35,10 @@ urlpatterns = [
     path("saved/", listing_views.saved_jobs),
     #When someone clicks apply button on the filter dropdown, Django runs the apply_filters function to filter the feed.
     path("feed/apply_filters/", listing_views.apply_filters, name="apply_filters"),
+    # US4.4: saving a private note on a saved job
+    path("saved/<int:listing_id>/note/", listing_views.add_note),
+    # US4.4: delete one private note (the little x)
+    path("saved/notes/<int:note_id>/delete/", listing_views.delete_note),
 ]
 
 if settings.DEBUG:
