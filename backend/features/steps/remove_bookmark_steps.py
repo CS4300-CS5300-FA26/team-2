@@ -21,15 +21,13 @@ def step_listing_is_saved(context):
 def step_remove_bookmark(context):
     # same form the Remove button sends
     context.test.client.post(
-        f"/feed/{context.listing.id}/remove/",
-        {"next": "saved"},
-    )
+        f"/api/listings/{context.listing.id}/remove/")
 
 
 # THEN: the job is gone from the Saved Jobs page
 @then("the listing no longer appears on my Saved Jobs page")
 def step_listing_gone(context):
-    response = context.test.client.get("/saved/")
+    response = context.test.client.get("/api/listings/saved/")
 
     context.test.assertEqual(response.status_code, 200)
-    context.test.assertNotContains(response, "Backend Intern")
+    context.test.assertEqual(response.json()["listings"], [])

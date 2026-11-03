@@ -63,8 +63,7 @@ class ResumeUploadTests(TestCase):
     def test_upload_page_requires_login(self):
         response = self.client.get(self.url)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.url.startswith(reverse("login")))
+        self.assertEqual(response.status_code, 401)
 
     def test_pdf_upload_sets_the_logged_in_user_as_owner(self):
         self.sign_in()
@@ -73,14 +72,15 @@ class ResumeUploadTests(TestCase):
             "resume.pdf",
             b"%PDF-1.4 test file",
             "application/pdf",
-            follow=True,
         )
 
         resume = Resume.objects.get()
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(resume.owner, self.user)
-        self.assertContains(response, "resume.pdf")
+        self.assertTrue(response.json()["name"].startswith("resume"))
+        listed = self.client.get(self.url).json()["results"]
+        self.assertEqual([r["id"] for r in listed], [resume.id])
 
     def test_invalid_uploads_are_rejected_and_not_saved(self):
         self.sign_in()
@@ -98,8 +98,8 @@ class ResumeUploadTests(TestCase):
             with self.subTest(filename=filename):
                 response = self.post_upload(filename, content, content_type)
 
-                self.assertEqual(response.status_code, 200)
-                self.assertIn("file", response.context["form"].errors)
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("file", response.json()["errors"])
                 self.assertFalse(Resume.objects.exists())
 
     def test_user_cannot_see_another_users_resume(self):
@@ -116,7 +116,7 @@ class ResumeUploadTests(TestCase):
         self.sign_in()
         response = self.client.get(self.url)
 
-        self.assertNotContains(response, "private-resume.pdf")
+        self.assertEqual(response.json()["results"], [])
 
 
     def test_feedback_requires_login(self):
@@ -128,11 +128,8 @@ class ResumeUploadTests(TestCase):
 
         response = self.client.post(feedback_url)
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(
-            response.url.startswith(reverse("login"))
-        )
-    @patch("resumes.views.get_resume_feedback")
+        self.assertEqual(response.status_code, 401)
+    @patch("resumes.api.get_resume_feedback")
     def test_user_receives_feedback_for_their_resume(
         self,
         feedback_function,
@@ -150,14 +147,14 @@ class ResumeUploadTests(TestCase):
         response = self.client.post(feedback_url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            "Add numbers to show your results",
+        self.assertEqual(
+            response.json()["suggestions"],
+            ["- Add numbers to show your results"],
         )
         feedback_function.assert_called_once_with(resume)
 
 
-    @patch("resumes.views.get_resume_feedback")
+    @patch("resumes.api.get_resume_feedback")
     def test_user_cannot_request_feedback_for_another_resume(
         self,
         feedback_function,
@@ -179,8 +176,8 @@ class ResumeUploadTests(TestCase):
         feedback_function.assert_not_called()
 
 
-    @patch("resumes.views.get_resume_feedback")
-    def test_ai_error_returns_to_upload_page(
+    @patch("resumes.api.get_resume_feedback")
+    def test_ai_error_returns_503_json(
         self,
         feedback_function,
     ):
@@ -194,19 +191,16 @@ class ResumeUploadTests(TestCase):
         )
         self.sign_in()
 
-        response = self.client.post(
-            feedback_url,
-            follow=True,
-        )
+        response = self.client.post(feedback_url)
 
-        self.assertRedirects(response, self.url)
-        self.assertContains(
-            response,
+        self.assertEqual(response.status_code, 503)
+        self.assertIn(
             "AI feedback is unavailable right now",
+            response.json()["detail"],
         )
 
 
-    @patch("resumes.views.get_resume_feedback")
+    @patch("resumes.api.get_resume_feedback")
     def test_feedback_rejects_get_requests(
         self,
         feedback_function,
@@ -224,18 +218,15 @@ class ResumeUploadTests(TestCase):
         feedback_function.assert_not_called()
 
 
-    def test_upload_page_has_feedback_button(self):
+    def test_list_includes_own_resume_fields(self):
         resume = self.create_resume()
-        feedback_url = reverse(
-            "resumes:feedback",
-            args=[resume.id],
-        )
         self.sign_in()
 
-        response = self.client.get(self.url)
+        item = self.client.get(self.url).json()["results"][0]
 
-        self.assertContains(response, "Get AI feedback")
-        self.assertContains(response, feedback_url)
+        self.assertEqual(item["id"], resume.id)
+        self.assertIn("url", item)
+        self.assertIn("uploaded_at", item)
 
     def test_resume_file_is_prepared_for_openai(self):
         resume = self.create_resume()

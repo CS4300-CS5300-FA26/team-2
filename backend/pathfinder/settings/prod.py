@@ -7,8 +7,15 @@ DEBUG = False
 
 SECRET_KEY = env("SECRET_KEY")  # raises if missing — no insecure fallback in prod
 
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[]) 
+# The browser only ever talks to the web app, which proxies /api etc. to this backend
+# (frontend/server.mjs) and forwards the web hostname as X-Forwarded-Host, so both names
+# must be allowed. Env vars override these defaults.
+_AZURE_HOSTS = ["app-pathfinder-prod-web.azurewebsites.net", "app-pathfinder-prod-api.azurewebsites.net"]
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=_AZURE_HOSTS)
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[f"https://{h}" for h in _AZURE_HOSTS])
+USE_X_FORWARDED_HOST = True  # safe: ALLOWED_HOSTS still validates the forwarded host
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 
 # Without SMTP config, alert emails are written to the server log instead of
 # sent, so a deploy missing these variables still boots. In-app alerts are unaffected.

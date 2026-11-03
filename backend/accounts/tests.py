@@ -2,113 +2,76 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 User = get_user_model()
+PW = "Tr1cky-Passw0rd!"
 
 
-class SignupPageTests(TestCase):
+class AuthApiTests(TestCase):
+    def post(self, path, data):
+        return self.client.post(f"/api/auth/{path}", data, content_type="application/json")
 
-    # TEST 1: the sign-up page loads and shows the form
-    def test_signup_page_loads(self):
-        response = self.client.get("/accounts/signup/")
-
+    def test_csrf_sets_cookie(self):
+        response = self.client.get("/api/auth/csrf")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Sign up")
+        self.assertIn("csrftoken", response.cookies)
 
-    # TEST 2: a strong password creates the account, logs the user in,
-    # and sends them to the profile step (US1.2)
-    def test_strong_password_creates_account(self):
-        response = self.client.post("/accounts/signup/", {
-            "username": "newuser",
-            "password1": "Tr1cky-Passw0rd!",
-            "password2": "Tr1cky-Passw0rd!",
-        })
+    def test_me_logged_out_and_in(self):
+        self.assertEqual(self.client.get("/api/auth/me").json(), {"user": None})
+        User.objects.create_user(username="u", password=PW)
+        self.client.login(username="u", password=PW)
+        user = self.client.get("/api/auth/me").json()["user"]
+        self.assertEqual(user["username"], "u")
+        self.assertFalse(user["profile_complete"])
 
-        self.assertRedirects(response, "/accounts/signup/profile/")
-        self.assertTrue(User.objects.filter(username="newuser").exists())
+    def test_login_ok_and_bad(self):
+        User.objects.create_user(username="u", password=PW)
+        self.assertEqual(self.post("login", {"username": "u", "password": "nope"}).status_code, 400)
+        response = self.post("login", {"username": "u", "password": PW})
+        self.assertEqual(response.json()["user"]["username"], "u")
+        self.assertIsNotNone(self.client.get("/api/auth/me").json()["user"])
 
-        # the feed needs a login, so a 200 here means they were logged in
-        self.assertEqual(self.client.get("/feed/").status_code, 200)
+    def test_logout(self):
+        User.objects.create_user(username="u", password=PW)
+        self.client.login(username="u", password=PW)
+        self.post("logout", {})
+        self.assertIsNone(self.client.get("/api/auth/me").json()["user"])
 
-    # TEST 3: a weak password is rejected and no account is made
-    def test_weak_password_is_rejected(self):
-        response = self.client.post("/accounts/signup/", {
-            "username": "newuser",
-            "password1": "12345678",
-            "password2": "12345678",
-        })
+    def test_signup_creates_and_logs_in(self):
+        response = self.post("signup", {"username": "new", "password1": PW, "password2": PW})
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(User.objects.filter(username="new").exists())
+        self.assertIsNotNone(self.client.get("/api/auth/me").json()["user"])
 
-        # the page shows again (no redirect) with an error
+    def test_signup_weak_and_short_passwords_rejected(self):
+        for pw, msg in (("12345678", "too common"), ("Ab1!", "too short")):
+            response = self.post("signup", {"username": "new", "password1": pw, "password2": pw})
+            self.assertEqual(response.status_code, 400)
+            self.assertIn(msg, str(response.json()["errors"]["password2"]))
+        self.assertFalse(User.objects.filter(username="new").exists())
+
+    def test_profile_needs_login(self):
+        self.assertEqual(self.post("signup/profile", {}).status_code, 401)
+
+    def test_profile_saved_and_complete(self):
+        User.objects.create_user(username="u", password=PW)
+        self.client.login(username="u", password=PW)
+        response = self.post("signup/profile", {"first_name": "Ada", "last_name": "L", "email": "ada@example.com"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "This password is too common")
-        self.assertFalse(User.objects.filter(username="newuser").exists())
+        self.assertTrue(response.json()["user"]["profile_complete"])
 
-    # TEST 4: a password that is too short is rejected
-    def test_short_password_is_rejected(self):
-        response = self.client.post("/accounts/signup/", {
-            "username": "newuser",
-            "password1": "Ab1!",
-            "password2": "Ab1!",
-        })
+    def test_profile_missing_field_and_bad_email_rejected(self):
+        user = User.objects.create_user(username="u", password=PW)
+        self.client.login(username="u", password=PW)
+        response = self.post("signup/profile", {"first_name": "Ada", "last_name": "", "email": "ada@example.com"})
+        self.assertIn("last_name", response.json()["errors"])
+        response = self.post("signup/profile", {"first_name": "Ada", "last_name": "L", "email": "nope"})
+        self.assertIn("email", response.json()["errors"])
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "This password is too short")
-        self.assertFalse(User.objects.filter(username="newuser").exists())
-
-
-class SignupProfileStepTests(TestCase):
-
-    def setUp(self):
-        self.user = User.objects.create_user(username="newuser", password="Tr1cky-Passw0rd!")
-        self.client.login(username="newuser", password="Tr1cky-Passw0rd!")
-
-    # TEST 1: the profile step loads for a logged-in user
-    def test_profile_step_loads(self):
-        response = self.client.get("/accounts/signup/profile/")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Step 2 of 2")
-        self.assertContains(response, "Complete your profile")
-
-    # TEST 2: someone who isn't logged in is sent to the login page
-    def test_profile_step_needs_login(self):
-        self.client.logout()
-        response = self.client.get("/accounts/signup/profile/")
-
-        self.assertRedirects(response, "/accounts/login/?next=/accounts/signup/profile/")
-
-    # TEST 3: filling in every field saves the profile and goes to the feed
-    def test_complete_profile_is_saved(self):
-        response = self.client.post("/accounts/signup/profile/", {
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "email": "ada@example.com",
-        })
-
-        self.assertRedirects(response, "/feed/")
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.first_name, "Ada")
-        self.assertEqual(self.user.last_name, "Lovelace")
-        self.assertEqual(self.user.email, "ada@example.com")
-
-    # TEST 4: leaving a field empty shows an error and saves nothing
-    def test_missing_field_is_rejected(self):
-        response = self.client.post("/accounts/signup/profile/", {
-            "first_name": "Ada",
-            "last_name": "",
-            "email": "ada@example.com",
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "This field is required")
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.first_name, "")
-
-    # TEST 5: a badly formatted email is rejected
-    def test_bad_email_is_rejected(self):
-        response = self.client.post("/accounts/signup/profile/", {
-            "first_name": "Ada",
-            "last_name": "Lovelace",
-            "email": "not-an-email",
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Enter a valid email address")
+    def test_profile_duplicate_email_blocked(self):
+        User.objects.create_user(username="a", password=PW, email="Ada@example.com")
+        User.objects.create_user(username="u", password=PW)
+        self.client.login(username="u", password=PW)
+        response = self.post("signup/profile", {"first_name": "B", "last_name": "C", "email": "ada@example.com"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("email", response.json()["errors"])

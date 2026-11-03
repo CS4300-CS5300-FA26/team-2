@@ -16,7 +16,7 @@ def step_viewing_saved_job(context):
     Bookmark.objects.create(user=context.user, listing=context.listing)
 
     # open the Saved Jobs page
-    response = context.test.client.get("/saved/")
+    response = context.test.client.get("/api/listings/saved/")
     context.test.assertContains(response, "Cloud Intern")
 
 
@@ -24,8 +24,9 @@ def step_viewing_saved_job(context):
 @when("I add a private note to it")
 def step_add_note(context):
     context.test.client.post(
-        f"/saved/{context.listing.id}/note/",
+        f"/api/listings/{context.listing.id}/notes/",
         {"note": "Close to home and great team"},
+        content_type="application/json",
     )
 
 
@@ -33,7 +34,7 @@ def step_add_note(context):
 @then("the note is saved and visible only to me when I return to that listing")
 def step_note_visible_only_to_me(context):
     # I come back to my Saved Jobs page and see my note
-    response = context.test.client.get("/saved/")
+    response = context.test.client.get("/api/listings/saved/")
     context.test.assertContains(response, "Close to home and great team")
 
     # another user saves the same job and does NOT see my note
@@ -41,6 +42,6 @@ def step_note_visible_only_to_me(context):
     Bookmark.objects.create(user=other_user, listing=context.listing)
     context.test.client.force_login(other_user)
 
-    response = context.test.client.get("/saved/")
+    response = context.test.client.get("/api/listings/saved/")
     context.test.assertContains(response, "Cloud Intern")
     context.test.assertNotContains(response, "Close to home and great team")

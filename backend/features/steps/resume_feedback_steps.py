@@ -38,7 +38,7 @@ def step_request_feedback(context):
 
     # Replace the real service so the test does not call OpenAI
     with patch(
-        "resumes.views.get_resume_feedback"
+        "resumes.api.get_resume_feedback"
     ) as feedback_function:
         feedback_function.return_value = (
             "- Add measurable results to your experience"
@@ -55,7 +55,7 @@ def step_receive_feedback(context):
     context.test.assertEqual(context.response.status_code, 200)
 
     # Confirm that the feedback appeared on the page
-    context.test.assertContains(
-        context.response,
+    context.test.assertIn(
         "Add measurable results to your experience",
+        context.response.json()["feedback"],
     )
