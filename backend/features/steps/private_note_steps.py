@@ -9,7 +9,7 @@ from listings.models import Bookmark, Listing
 # GIVEN: I'm logged in, have one saved job, and I'm on my Saved Jobs page
 @given("I am viewing a saved job")
 def step_viewing_saved_job(context):
-    context.user = User.objects.create_user(username="noteuser", password="testpass123")
+    context.user = User.objects.create_user(username="noteuser", password="testpass123", first_name="Test", last_name="User", email="noteuser@example.com")
     context.test.client.force_login(context.user)
 
     context.listing = Listing.objects.create(title="Cloud Intern", company="Raytheon")
@@ -38,7 +38,7 @@ def step_note_visible_only_to_me(context):
     context.test.assertContains(response, "Close to home and great team")
 
     # another user saves the same job and does NOT see my note
-    other_user = User.objects.create_user(username="otheruser", password="testpass123")
+    other_user = User.objects.create_user(username="otheruser", password="testpass123", first_name="Test", last_name="User", email="otheruser@example.com")
     Bookmark.objects.create(user=other_user, listing=context.listing)
     context.test.client.force_login(other_user)
 

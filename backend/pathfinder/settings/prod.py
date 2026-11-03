@@ -68,7 +68,8 @@ STORAGES = {
 # EMAIL_HOST above). Set via Key Vault (infra/terraform/app_service.tf's
 # SENTRY_DSN app setting), so this is a no-op until that secret exists.
 SENTRY_DSN = env("SENTRY_DSN", default="")
-if SENTRY_DSN:
+# Key Vault reference text (secret missing) is not a DSN; skip rather than crash on boot.
+if SENTRY_DSN.startswith("https://"):
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration
 

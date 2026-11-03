@@ -1,4 +1,5 @@
 """JSON API for resume upload and AI feedback (consumed by the React pages)."""
+from accounts.api import is_profile_complete
 from functools import wraps
 from pathlib import Path
 
@@ -17,6 +18,8 @@ def api_login_required(view):
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({"detail": "Authentication required."}, status=401)
+        if not is_profile_complete(request.user):
+            return JsonResponse({"detail": "Complete your profile first."}, status=403)
         return view(request, *args, **kwargs)
 
     return wrapper

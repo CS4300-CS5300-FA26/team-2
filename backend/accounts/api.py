@@ -14,6 +14,10 @@ from django.views.decorators.http import require_GET, require_POST
 from .forms import ProfileForm
 
 
+def is_profile_complete(user):
+    return bool(user.first_name and user.last_name and user.email)
+
+
 def _user_json(user):
     return {
         "id": user.id,
@@ -22,7 +26,7 @@ def _user_json(user):
         "last_name": user.last_name,
         "email": user.email,
         # sign-up step 2 cannot be skipped: the frontend sends users here until True
-        "profile_complete": bool(user.first_name and user.last_name and user.email),
+        "profile_complete": is_profile_complete(user),
     }
 
 

@@ -16,6 +16,9 @@ def step_uploaded_resume(context):
     context.user = get_user_model().objects.create_user(
         username="resume-feedback-user",
         password="test-password-123",
+        first_name="Test",
+        last_name="User",
+        email="resume-feedback-user@example.com",
     )
 
     # Log in without using the login form

@@ -15,8 +15,8 @@ class ApiTestCase(TestCase):
     """Shared helpers: users, one listing, JSON posting."""
 
     def setUp(self):
-        self.user = User.objects.create_user(username="testuser", password="testpass123")
-        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
+        self.user = User.objects.create_user(username="testuser", password="testpass123", first_name="Test", last_name="User", email="testuser@example.com")
+        self.other_user = User.objects.create_user(username="otheruser", password="testpass123", first_name="Test", last_name="User", email="otheruser@example.com")
         self.listing = Listing.objects.create(title="Software Intern", company="Lockheed")
         self.save_url = f"/api/listings/{self.listing.id}/save/"
         self.remove_url = f"/api/listings/{self.listing.id}/remove/"
@@ -255,3 +255,13 @@ class PrivateNoteTests(ApiTestCase):
     def test_note_str(self):
         note = Note.objects.create(bookmark=self.bookmark, text="Remember the 401k match")
         self.assertEqual(str(note), "Remember the 401k match")
+
+
+class ProfileGateTests(TestCase):
+    def test_incomplete_profile_cannot_use_listings_api(self):
+        user = User.objects.create_user(username="nofill", password="testpass123")
+        self.client.force_login(user)
+        for url in (FEED, "/api/listings/saved/"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()["detail"], "Complete your profile first.")
