@@ -154,6 +154,7 @@ This section records where and when team members used AI assistance: the tool us
 | Seth | Codex (OpenAI) | US2.2 AI resume feedback service, protected view, templates, Behave scenario, and Django tests | Used for guidance and initial code suggestions; I reviewed the code, tested the real website flow, and verified the full test suite and coverage |
 | Nicole | Claude (Anthropic) | US4.3 remove bookmark: Remove button, redirect back to Saved Jobs, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), checked the page in the browser, and committed the final work |
 | Nicole Vance | Claude (Anthropic) | US4.4 private notes: Note model and migrations, add and delete note views, URLs, two-column Saved Jobs layout, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), changed the design to allow multiple notes with a delete x, checked the page in the browser, and committed the final work |
+| Seth | Codex (OpenAI) | US2.6 resume replacement and deletion API, React controls, unit tests, behavior scenarios, styling, and troubleshooting | Used for guidance and code suggestions; I reviewed each change, tested the complete feature in the browser, and ran the automated tests |
 | [Add more as needed] | | | |
 
 ### Notes

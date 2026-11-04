@@ -16,18 +16,26 @@ function csrf(): string {
 }
 
 export async function call<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "DELETE",
   path: string,
   body?: FormData,
   onProgress?: (pct: number) => void,
 ): Promise<T> {
-  if (method === "POST" && !csrf()) await fetch("/api/auth/csrf", { credentials: "include" });
+  const changesData = method !== "GET";
+
+  if (changesData && !csrf()) {
+    await fetch("/api/auth/csrf", {
+      credentials: "include",
+    });
+  }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, path);
     xhr.withCredentials = true;
     xhr.setRequestHeader("Accept", "application/json");
-    if (method === "POST") xhr.setRequestHeader("X-CSRFToken", csrf());
+    if (changesData) {
+      xhr.setRequestHeader("X-CSRFToken", csrf());
+    }
     if (onProgress) {
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
@@ -66,4 +74,25 @@ export function uploadResume(file: File, onProgress: (pct: number) => void) {
   const fd = new FormData();
   fd.append("file", file);
   return call<Resume>("POST", "/api/resumes/", fd, onProgress);
+}
+export const deleteResume = (id: number) =>
+  call<void>(
+    "DELETE",
+    `/api/resumes/${id}/`,
+  );
+
+export function replaceResume(
+  id: number,
+  file: File,
+  onProgress?: (pct: number) => void,
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return call<Resume>(
+    "POST",
+    `/api/resumes/${id}/replace/`,
+    formData,
+    onProgress,
+  );
 }

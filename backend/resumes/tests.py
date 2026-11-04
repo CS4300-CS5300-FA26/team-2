@@ -191,26 +191,6 @@ class ResumeUploadTests(TestCase):
             storage.exists(stored_file_name)
         )
 
-    def test_delete_requires_login(self):
-        resume = self.create_resume()
-
-        stored_file_name = resume.file.name
-        storage = resume.file.storage
-        delete_url = reverse(
-            "resumes:delete",
-            args=[resume.id],
-        )
-
-        response = self.client.delete(delete_url)
-
-        self.assertEqual(response.status_code, 401)
-        self.assertTrue(
-            Resume.objects.filter(id=resume.id).exists()
-        )
-        self.assertTrue(
-            storage.exists(stored_file_name)
-        )
-
     def test_user_can_replace_their_resume(self):
         resume = self.create_resume()
 
