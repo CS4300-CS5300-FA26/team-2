@@ -99,6 +99,16 @@ delete alerts. The Notification History page lists past alerts and the listings 
 triggered them. Matching runs with `python manage.py run_alert_matching` (schedule it hourly).
 Email alerts need the email settings below.
 
+## Azure deployment (gateway -> web + api)
+
+All UI is React (`frontend/`), served by `app-pathfinder-prod-web` (`pm2 serve --spa`). The public
+origin is the nginx gateway (`app-pathfinder-prod-gateway`, `path-finders.app`), which sends only
+`/api/`, `/admin/`, `/static/` and `/media/` to Django (`app-pathfinder-prod-api`) and everything
+else to the React app, so `/login`, `/feed`, `/saved` and `/resumes/...` are client-side routes.
+Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform`; deploys run from
+`.github/workflows/deploy.yml` on pushes to `main`. In local dev, Vite proxies the same prefixes to
+`localhost:8000` (`API_ORIGIN` overrides it).
+
 ## Deployment settings (Railway)
 
 > ⚠️ **Set these on the Railway backend service.** The backend refuses to start without

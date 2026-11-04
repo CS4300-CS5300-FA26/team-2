@@ -65,13 +65,12 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      # Vite inlines import.meta.env.VITE_* at build time; this is the
-      # live backend's own azurewebsites.net hostname, not a secret.
+      # No VITE_API_BASE_URL: the browser calls /api on its own origin
+      # (path-finders.app), which the gateway proxies to Django. Same-origin
+      # keeps session/CSRF cookies first-party (no third-party cookie blocking).
       - name: Build frontend
         run: npm run build
         working-directory: frontend
-        env:
-          VITE_API_BASE_URL: https://app-pathfinder-prod-api.azurewebsites.net
 
       - name: Zip built frontend
         run: zip -r ../frontend-deploy.zip dist
@@ -150,5 +149,8 @@ jobs:
       - name: Gateway proxies the backend API
         run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/api/csrf/
 
-      - name: Gateway proxies the legacy Django feed page
-        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/feed/
+      - name: Gateway serves the React feed route
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/feed
+
+      - name: Gateway proxies the auth API (logged-out user)
+        run: curl --fail --retry 10 --retry-delay 15 --retry-connrefused https://path-finders.app/api/auth/me
