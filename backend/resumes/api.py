@@ -2,7 +2,7 @@
 from functools import wraps
 from pathlib import Path
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import ResumeUploadForm
@@ -53,7 +53,75 @@ def resumes(request):
     items = request.user.resumes.order_by("-uploaded_at")
     return JsonResponse({"results": [serialize(r) for r in items]})
 
+@api_login_required
+@require_http_methods(["DELETE"])
+def delete_resume(request, resume_id):
+    """
+    Deletes one resume owned by the logged-in user
+    """
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
 
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    resume.file.delete(save=False)
+    resume.delete()
+
+    return HttpResponse(status=204)
+
+@api_login_required
+@require_POST
+def replace_resume(request, resume_id):
+    """
+    Replaces one resume owned by the logged-in user
+    """
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    old_file_name = resume.file.name
+    storage = resume.file.storage
+
+    form = ResumeUploadForm(
+        request.POST,
+        request.FILES,
+        instance=resume,
+    )
+
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "detail": "Replacement failed.",
+                "errors": {
+                    field: list(errors)
+                    for field, errors in form.errors.items()
+                },
+            },
+            status=400,
+        )
+
+    updated_resume = form.save()
+
+    if old_file_name != updated_resume.file.name:
+        storage.delete(old_file_name)
+
+    return JsonResponse(
+        serialize(updated_resume),
+        status=200,
+    )
 @api_login_required
 @require_POST
 def resume_feedback(request, resume_id):
