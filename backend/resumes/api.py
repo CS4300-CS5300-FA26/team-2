@@ -94,7 +94,18 @@ def replace_resume(request, resume_id):
             {"detail": "Not found."},
             status=404,
         )
+    replacement_file = request.FILES.get("file")
 
+    if replacement_file is None:
+        return JsonResponse(
+            {
+                "detail": "Replacement failed.",
+                "errors": {
+                    "file": ["Please choose a resume file."],
+                },
+            },
+            status=400,
+        )
     old_file_name = resume.file.name
     storage = resume.file.storage
 

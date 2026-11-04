@@ -107,6 +107,7 @@ class ResumeUploadTests(TestCase):
 
     def test_user_cannot_see_another_users_resume(self):
         other_user = self.create_user("other-user")
+
         Resume.objects.create(
             owner=other_user,
             file=SimpleUploadedFile(
@@ -114,6 +115,15 @@ class ResumeUploadTests(TestCase):
                 b"%PDF-1.4 private file",
                 content_type="application/pdf",
             ),
+        )
+
+        self.sign_in()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(
+            response.json()["results"],
+            [],
         )
     def test_user_can_delete_their_resume(self):
         resume = self.create_resume()
@@ -141,10 +151,6 @@ class ResumeUploadTests(TestCase):
             storage.exists(stored_file_name)
         )
 
-        self.sign_in()
-        response = self.client.get(self.url)
-
-        self.assertEqual(response.json()["results"], [])
     def test_user_cannot_delete_another_users_resume(self):
         other_user = self.create_user("other-user")
         resume = self.create_resume(
@@ -227,6 +233,35 @@ class ResumeUploadTests(TestCase):
         )
         self.assertTrue(
             storage.exists(resume.file.name)
+        )
+
+    def test_replacement_requires_a_file(self):
+        resume = self.create_resume()
+
+        old_file_name = resume.file.name
+        storage = resume.file.storage
+        replace_url = reverse(
+            "resumes:replace",
+            args=[resume.id],
+        )
+
+        self.sign_in()
+
+        response = self.client.post(replace_url)
+
+        resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "file",
+            response.json()["errors"],
+        )
+        self.assertEqual(
+            resume.file.name,
+            old_file_name,
+        )
+        self.assertTrue(
+            storage.exists(old_file_name)
         )
 
     def test_invalid_replacement_keeps_original_resume(self):

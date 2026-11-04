@@ -57,8 +57,9 @@ def step_confirm_replacement(context):
         context.resume.file.name,
     )
 
-    # Remove the test file after the scenario
+    # Remove the test file and its database record
     context.resume.file.delete(save=False)
+    context.resume.delete()
 
 
 @when("I delete my uploaded resume")

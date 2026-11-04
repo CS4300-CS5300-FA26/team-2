@@ -185,13 +185,21 @@ export default function UploadPage() {
                     <span className="muted">Uploaded {new Date(r.uploaded_at).toLocaleString()}</span>
                   </div>
                   <div className="resume-actions">
-                      <Link
-                        className="btn"
-                        to={`/resumes/${r.id}/feedback`}
-                        aria-disabled={workingResumeId === r.id}
-                      >
-                        Get AI feedback
-                      </Link>
+                      {workingResumeId === r.id ? (
+                        <span
+                          className="btn"
+                          aria-disabled="true"
+                        >
+                          Get AI feedback
+                        </span>
+                      ) : (
+                        <Link
+                          className="btn"
+                          to={`/resumes/${r.id}/feedback`}
+                        >
+                          Get AI feedback
+                        </Link>
+                      )}
 
                       <label
                         className="btn"
