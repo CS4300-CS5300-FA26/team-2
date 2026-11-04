@@ -35,8 +35,11 @@ if env("EMAIL_HOST", default=""):
     DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "webmaster@localhost")
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    # codes would only reach the server log, so skip sign-up step 3 (US1.3)
+    EMAIL_VERIFICATION = False
     warnings.warn(
-        "EMAIL_HOST is not set; alert emails will be logged, not sent. To send them, set "
+        "EMAIL_HOST is not set; alert emails will be logged, not sent, and sign-up skips "
+        "the email code step. To send them, set "
         "EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD and DEFAULT_FROM_EMAIL "
         "(see README: Deployment settings)."
     )
