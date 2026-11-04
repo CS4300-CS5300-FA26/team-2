@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet, apiPost } from "../../api/client";
-import { CredScore, Listing, errorText, useAuthRedirect } from "./shared";
+import { CredScore, Listing, errorText, useAuthRedirect, JobDetails } from "./shared";
 import "./listings.css";
 
 export default function FeedPage() {
@@ -47,6 +47,7 @@ export default function FeedPage() {
             <div>
               <h3>{l.title}</h3>
               <p>{l.company}</p>
+              <JobDetails listing={l} />
             </div>
             <div className="listing-actions">
               <CredScore listing={l} />
