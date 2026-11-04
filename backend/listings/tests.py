@@ -436,3 +436,40 @@ class ImportJobsTests(ApiTestCase):
         second_request = mock_urlopen.call_args_list[1][0][0]
         self.assertIn("per_page=100", first_request.full_url)
         self.assertIn("per_page=1&", second_request.full_url)
+
+
+#Sprint 3: tests for importing tech jobs
+@override_settings(JOBDATALAKE_API_KEY="test-key")
+class ImportJobsFunctionTests(ApiTestCase):
+
+    # TEST 11: by default we ask for any tech (eng) job
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_asks_for_tech_jobs_by_default(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs")
+
+        # look at the request our code tried to send
+        request = mock_urlopen.call_args[0][0]
+        self.assertIn("q=%2A", request.full_url)  # "*" = any job title
+        self.assertIn("job_function=eng", request.full_url)
+
+    # TEST 12: --function picks another kind of job (uppercase works too)
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_can_ask_for_another_function(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs", "--function", "DATA")
+
+        request = mock_urlopen.call_args[0][0]
+        self.assertIn("job_function=data", request.full_url)
+
+    # TEST 13: --function "" means any kind of job, so we don't send it at all
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_with_empty_function_sends_no_filter(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs", "--function", "")
+
+        request = mock_urlopen.call_args[0][0]
+        self.assertNotIn("job_function=", request.full_url)
