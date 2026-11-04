@@ -27,24 +27,31 @@ export type AlertInput = Partial<
 >;
 
 const SAFE_METHODS = ["GET", "HEAD", "OPTIONS", "TRACE"];
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.split("; ").find((row) => row.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+// The API lives on a different origin from this app (no shared gateway in
+// this deploy), so document.cookie can't see its csrftoken cookie -- fetch
+// the token from the API's own bootstrap endpoint instead, once, and reuse it.
+let csrfTokenPromise: Promise<string> | null = null;
+function getCsrfToken(): Promise<string> {
+  csrfTokenPromise ??= fetch(`${API_BASE}/api/csrf/`, { credentials: "include" })
+    .then((res) => res.json())
+    .then((data: { csrfToken: string }) => data.csrfToken);
+  return csrfTokenPromise;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? "GET").toUpperCase();
   // DRF's SessionAuthentication rejects unsafe requests from logged-in users without this header.
-  const csrfToken = SAFE_METHODS.includes(method) ? null : getCookie("csrftoken");
-  const response = await fetch(path, {
+  const csrfToken = SAFE_METHODS.includes(method) ? null : await getCsrfToken();
+  const response = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       ...init?.headers,
     },
-    credentials: "same-origin",
+    credentials: "include",
   });
   if (!response.ok) {
     throw new Error(`Request to ${path} failed: ${response.status}`);
