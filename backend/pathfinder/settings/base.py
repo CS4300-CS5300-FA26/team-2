@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "corsheaders",
     "accounts",
     "resumes",
     "ai_intelligence",
@@ -30,6 +31,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",# Serve collected static files when Django runs on Railway
+    "corsheaders.middleware.CorsMiddleware",  # must sit before CommonMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -94,8 +96,8 @@ REST_FRAMEWORK = {
 
 
 # where @login_required sends people who aren't logged in.
-# US1.x can change this to the real login page later.
-LOGIN_URL = "/accounts/login/"
+# The React login page.
+LOGIN_URL = "/login"
 
 # where to go after logging in, if there's no other page to go back to
-LOGIN_REDIRECT_URL = "/feed/"
+LOGIN_REDIRECT_URL = "/feed"

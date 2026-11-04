@@ -79,8 +79,15 @@ jobs:
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Run Django tests
-        run: python manage.py test
+      #Added coverage and Behave
+      - name: Run Django tests with coverage
+        run: coverage run manage.py test
+
+      - name: Show coverage report
+        run: coverage report
+
+      - name: Run Behave (BDD) scenarios
+        run: python manage.py behave
 
   frontend-gateway:
     name: Test frontend gateway routes
