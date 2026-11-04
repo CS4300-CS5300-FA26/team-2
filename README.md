@@ -63,7 +63,14 @@ Tests also run automatically on GitHub (GitHub Actions) for every push and pull 
 
 ### US1.1: Sign up
 New users can create an account at `/accounts/signup/`. Weak passwords (too short, too common,
-or all numbers) are rejected. After signing up, users are logged in and sent to the job feed.
+or all numbers) are rejected. After signing up, users are logged in and sent to step 2.
+
+### US1.2 / US1.3: Profile step and email verification
+Step 2 asks for first name, last name and email (one account per email, ignoring case).
+Step 3 emails a 6-digit code that works for 10 minutes; 5 wrong guesses lock it, and
+"Resend code" sends a new one at most once a minute. Until both steps are done, the site
+sends the user back to the step they owe, and the `/api/` endpoints refuse them.
+If `EMAIL_HOST` is not set in prod, step 3 is skipped so new users don't get stuck.
 
 ### US2.1: Resume upload
 Logged-in users can upload a resume (PDF, DOC, or DOCX, up to 5 MB) at `/resumes/upload/`.
@@ -120,7 +127,7 @@ Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform
 | `SECRET_KEY` | **Yes** | long random string | Django signing key |
 | `ALLOWED_HOSTS` | **Yes** | `pathfinder-team2.up.railway.app` | Domains the backend answers for |
 | `DATABASE_URL` | **Yes** | `postgres://user:pass@host:5432/db` | Production database |
-| `EMAIL_HOST` | For email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
+| `EMAIL_HOST` | For sign-up codes and email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
 | `EMAIL_HOST_USER` | For email alerts | `alerts@yourdomain.com` | SMTP login |
 | `EMAIL_HOST_PASSWORD` | For email alerts | app password | SMTP password (use an app password, never a personal one) |
 | `DEFAULT_FROM_EMAIL` | Recommended | `Pathfinder <alerts@yourdomain.com>` | "From" address on alert emails (defaults to `EMAIL_HOST_USER`) |
@@ -154,6 +161,9 @@ This section records where and when team members used AI assistance: the tool us
 | Seth | Codex (OpenAI) | US2.2 AI resume feedback service, protected view, templates, Behave scenario, and Django tests | Used for guidance and initial code suggestions; I reviewed the code, tested the real website flow, and verified the full test suite and coverage |
 | Nicole | Claude (Anthropic) | US4.3 remove bookmark: Remove button, redirect back to Saved Jobs, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), checked the page in the browser, and committed the final work |
 | Nicole Vance | Claude (Anthropic) | US4.4 private notes: Note model and migrations, add and delete note views, URLs, two-column Saved Jobs layout, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), changed the design to allow multiple notes with a delete x, checked the page in the browser, and committed the final work |
+| Dominick | Claude (Anthropic) | US1.2 profile step after sign-up: profile form, step 2 view, URL, sign-up template changes, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Dominick | Claude (Anthropic) | US1.2 review fixes: middleware that sends new users back to step 2 until it's done, duplicate-email check, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Dominick | Claude (Anthropic) | US1.3 email verification: code model and migration, emailed 6-digit code, step 3 verify view, middleware check for unverified users, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | [Add more as needed] | | | |
 
 ### Notes

@@ -36,6 +36,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.ProfileStepMiddleware",  # US1.2/US1.3: finish sign-up before using the site
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -101,3 +102,7 @@ LOGIN_URL = "/login"
 
 # where to go after logging in, if there's no other page to go back to
 LOGIN_REDIRECT_URL = "/feed"
+
+# US1.3: new users must enter an emailed code before using the site.
+# prod.py turns this off when no SMTP server is set, so nobody gets stuck on step 3.
+EMAIL_VERIFICATION = True

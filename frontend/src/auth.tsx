@@ -9,6 +9,7 @@ export interface User {
   last_name: string;
   email: string;
   profile_complete: boolean;
+  email_verified: boolean;
 }
 
 interface AuthState {

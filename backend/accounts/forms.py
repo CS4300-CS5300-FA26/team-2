@@ -23,3 +23,8 @@ class ProfileForm(forms.ModelForm):
         if taken.exists():
             raise forms.ValidationError("An account with this email already exists.")
         return email
+
+
+# Step 3 of sign-up (US1.3): the code we emailed to the user.
+class VerifyCodeForm(forms.Form):
+    code = forms.CharField(max_length=6)
