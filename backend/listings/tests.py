@@ -1,215 +1,267 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from .models import Bookmark, Listing
+from ai_intelligence.models import CredibilityScore
 
-# get_user_model() gives us whatever User model the project uses,
-# so these tests still work if a teammate makes a custom User later
+from .models import Bookmark, Listing, Note
+
 User = get_user_model()
 
+FEED = "/api/listings/feed/"
+SAVED = "/api/listings/saved/"
 
-#Any function that starts with test is automatically ran by Django
-class FeedPageTests(TestCase):
 
-    # setUp runs before EVERY test, so each test starts fresh.
-    # Django also uses a separate, empty test database,
-    # so these tests never touch the real data
+class ApiTestCase(TestCase):
+    """Shared helpers: users, one listing, JSON posting."""
+
     def setUp(self):
-        # make a regular (not staff) user to test with
-        self.user = User.objects.create_user(username="testuser", password="testpass123")
-
-        # make a fake job listing to show on the feed
+        self.user = User.objects.create_user(username="testuser", password="testpass123", first_name="Test", last_name="User", email="testuser@example.com")
+        self.other_user = User.objects.create_user(username="otheruser", password="testpass123", first_name="Test", last_name="User", email="otheruser@example.com")
         self.listing = Listing.objects.create(title="Software Intern", company="Lockheed")
+        self.save_url = f"/api/listings/{self.listing.id}/save/"
+        self.remove_url = f"/api/listings/{self.listing.id}/remove/"
+        self.add_url = f"/api/listings/{self.listing.id}/notes/"
 
-        # the addresses the bookmark buttons send to
-        self.save_url = "/feed/" + str(self.listing.id) + "/save/"
-        self.remove_url = "/feed/" + str(self.listing.id) + "/remove/"
+    def titles(self, url):
+        return [l["title"] for l in self.client.get(url).json()["listings"]]
 
-    # TEST 1: the feed page shows listings from the database
+    def add_note(self, text, url=None):
+        return self.client.post(url or self.add_url, {"note": text}, content_type="application/json")
+
+
+class FeedApiTests(ApiTestCase):
     def test_feed_shows_listings_from_database(self):
         self.client.force_login(self.user)
-
-        response = self.client.get("/feed/")
-
-        # 200 means "the page loaded OK"
+        response = self.client.get(FEED)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Software Intern")
-        self.assertContains(response, "Lockheed")
+        item = response.json()["listings"][0]
+        self.assertEqual((item["title"], item["company"]), ("Software Intern", "Lockheed"))
 
-    # TEST 2: clicking the empty bookmark saves the listing
     def test_save_bookmark(self):
         self.client.force_login(self.user)
-
-        self.client.post(self.save_url)
-
+        response = self.client.post(self.save_url)
+        self.assertEqual(response.json(), {"id": self.listing.id, "saved": True})
         self.assertEqual(Bookmark.objects.count(), 1)
 
-    # TEST 3: saving twice (like a double click) still only makes 1 bookmark
     def test_save_twice_only_saves_once(self):
         self.client.force_login(self.user)
-
         self.client.post(self.save_url)
         self.client.post(self.save_url)
-
         self.assertEqual(Bookmark.objects.count(), 1)
 
-    # TEST 4: clicking the filled bookmark removes it
     def test_remove_bookmark(self):
         self.client.force_login(self.user)
         Bookmark.objects.create(user=self.user, listing=self.listing)
-
         self.client.post(self.remove_url)
-
         self.assertEqual(Bookmark.objects.count(), 0)
 
-    # TEST 5: removing twice doesn't cause an error
     def test_remove_twice_is_fine(self):
         self.client.force_login(self.user)
         Bookmark.objects.create(user=self.user, listing=self.listing)
-
         self.client.post(self.remove_url)
         response = self.client.post(self.remove_url)
-
-        # 302 means it redirected back to the feed (no crash)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(Bookmark.objects.count(), 0)
 
-    # TEST 6: a saved listing shows the filled in icon
-    def test_saved_listing_shows_filled_icon(self):
+    def test_saved_listing_is_flagged_saved(self):
         self.client.force_login(self.user)
         Bookmark.objects.create(user=self.user, listing=self.listing)
+        self.assertTrue(self.client.get(FEED).json()["listings"][0]["saved"])
 
-        response = self.client.get("/feed/")
-
-        self.assertContains(response, "Remove bookmark")
-
-    # TEST 7: another user's bookmark should NOT show as filled for me
     def test_other_users_bookmarks_are_not_shown(self):
-        other_user = User.objects.create_user(username="otheruser", password="testpass123")
-        Bookmark.objects.create(user=other_user, listing=self.listing)
-
-        # log in as the first user, who did NOT bookmark it
+        Bookmark.objects.create(user=self.other_user, listing=self.listing)
         self.client.force_login(self.user)
-        response = self.client.get("/feed/")
+        self.assertFalse(self.client.get(FEED).json()["listings"][0]["saved"])
 
-        self.assertNotContains(response, "Remove bookmark")
-        self.assertContains(response, "Bookmark listing")
-
-    # TEST 8: bookmarking a listing that doesn't exist gives a 404
     def test_save_missing_listing_gives_404(self):
         self.client.force_login(self.user)
+        self.assertEqual(self.client.post("/api/listings/9999/save/").status_code, 404)
 
-        response = self.client.post("/feed/9999/save/")
+    def test_remove_missing_listing_gives_404(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post("/api/listings/9999/remove/").status_code, 404)
 
-        self.assertEqual(response.status_code, 404)
-
-    # TEST 9: visiting the feed while logged out sends you to the login page
     def test_feed_needs_login(self):
-        response = self.client.get("/feed/")
+        response = self.client.get(FEED)
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("detail", response.json())
 
-        self.assertRedirects(response, "/accounts/login/?next=/feed/")
-
-    # TEST 10: a logged out user can't save a bookmark
-    def test_logged_out_cannot_save(self):
-        self.client.post(self.save_url)
-
+    def test_logged_out_cannot_save_or_remove(self):
+        self.assertEqual(self.client.post(self.save_url).status_code, 401)
+        self.assertEqual(self.client.post(self.remove_url).status_code, 401)
         self.assertEqual(Bookmark.objects.count(), 0)
 
-    # TEST 11: a regular (not staff) user can log in and see the feed.
-    # this would have caught the admin login problem.
-    def test_regular_user_can_log_in_and_see_feed(self):
-        response = self.client.post(
-            "/accounts/login/",
-            {"username": "testuser", "password": "testpass123", "next": "/feed/"},
-            follow=True,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Software Intern")
-    # Test 12: 
-    # the feed should have a link to the Saved Jobs page
-    def test_feed_has_link_to_saved_jobs(self):
+    def test_save_get_not_allowed(self):
         self.client.force_login(self.user)
-        response = self.client.get("/feed/")
+        self.assertEqual(self.client.get(self.save_url).status_code, 405)
 
-        # check the link is on the page
-        self.assertContains(response, 'href="/saved/"')
-    
-    # Test 13: To get model.py to 100% in Coverage
-    # a listing should show as "Title at Company" (used on the admin page)
+    def test_regular_user_can_log_in_and_see_feed(self):
+        self.client.post(
+            "/api/auth/login",
+            {"username": "testuser", "password": "testpass123"},
+            content_type="application/json",
+        )
+        self.assertEqual(self.titles(FEED), ["Software Intern"])
+
+    def test_unscored_listing_has_null_score(self):
+        self.client.force_login(self.user)
+        item = self.client.get(FEED).json()["listings"][0]
+        self.assertIsNone(item["score"])
+        self.assertEqual(item["reasoning"], "")
+
+    def test_scored_listing_includes_score_and_reasoning(self):
+        CredibilityScore.objects.update_or_create(
+            listing=self.listing, defaults={"score": 82, "reasoning": "Verified employer"}
+        )
+        self.client.force_login(self.user)
+        item = self.client.get(FEED).json()["listings"][0]
+        self.assertEqual((item["score"], item["reasoning"]), (82, "Verified employer"))
+
     def test_listing_str(self):
         self.assertEqual(str(self.listing), "Software Intern at Lockheed")
 
-#Sprint 1
-# Tests for the Saved Jobs page
-# The page lives at /saved/ and should show only MY bookmarked jobs
-class SavedJobsPageTests(TestCase):
 
-    # setUp runs before every test, so each test starts with the same fake data
+class SavedJobsApiTests(ApiTestCase):
     def setUp(self):
-        # make two fake users: me and another person
-        self.user = User.objects.create_user(username="testuser", password="testpass123")
-        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
-
-        # make two fake jobs
-        self.saved_job = Listing.objects.create(title="Software Intern", company="Acme")
+        super().setUp()
         self.unsaved_job = Listing.objects.create(title="Data Analyst", company="Globex")
+        Bookmark.objects.create(user=self.user, listing=self.listing)
+        self.client.force_login(self.user)
 
-        # I bookmark ONLY the first job
-        Bookmark.objects.create(user=self.user, listing=self.saved_job)
-
-
-    # TEST 1: I should see the job I saved
     def test_shows_my_saved_jobs(self):
-        # log in as me
-        self.client.force_login(self.user)
-
-        # open the saved jobs page
-        response = self.client.get("/saved/")
-
-        # 200 = the page loaded OK
+        response = self.client.get(SAVED)
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.titles(SAVED), ["Software Intern"])
 
-        # the job I saved should be on the page
-        self.assertContains(response, "Software Intern")
-
-
-    # TEST 2: I should NOT see a job I didn't save
-    def test_does_not_show_unsaved_jobs(self):
-        self.client.force_login(self.user)
-        response = self.client.get("/saved/")
-
-        # assertNotContains = make sure this text is NOT on the page
-        self.assertNotContains(response, "Data Analyst")
-
-
-    # TEST 3: I should NOT see jobs that other people saved
     def test_does_not_show_other_users_bookmarks(self):
-        # the other user saves the Data Analyst job (I never saved it)
         Bookmark.objects.create(user=self.other_user, listing=self.unsaved_job)
+        self.assertNotIn("Data Analyst", self.titles(SAVED))
 
-        # log in as me, not them
-        self.client.force_login(self.user)
-        response = self.client.get("/saved/")
-
-        # their bookmark should not show up on MY page
-        self.assertNotContains(response, "Data Analyst")
-
-
-    # TEST 4: if I saved nothing, show a message instead of a blank page
-    def test_shows_message_when_nothing_saved(self):
-        # the other user has no bookmarks yet, so log in as them
+    def test_empty_list_when_nothing_saved(self):
         self.client.force_login(self.other_user)
-        response = self.client.get("/saved/")
+        self.assertEqual(self.client.get(SAVED).json(), {"listings": []})
 
-        # this exact message should be on the page
-        self.assertContains(response, "You haven't saved any jobs yet.")
+    def test_saved_needs_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(SAVED).status_code, 401)
 
 
-    # TEST 5: you have to be logged in to see saved jobs
-    def test_saved_page_needs_login(self):
-        # no login here on purpose
-        response = self.client.get("/saved/")
+class RemoveFromSavedTests(ApiTestCase):
+    """US4.3 server side. The confirm dialog lives in the React page."""
 
-        # 302 = Django sent us to the login page instead
-        self.assertEqual(response.status_code, 302)
+    def setUp(self):
+        super().setUp()
+        Bookmark.objects.create(user=self.user, listing=self.listing)
+        self.client.force_login(self.user)
+
+    def test_removed_job_not_on_saved_list(self):
+        self.client.post(self.remove_url)
+        self.assertEqual(self.client.get(SAVED).json(), {"listings": []})
+
+    def test_remove_does_not_affect_other_users(self):
+        Bookmark.objects.create(user=self.other_user, listing=self.listing)
+        self.client.post(self.remove_url)
+        self.assertFalse(Bookmark.objects.filter(user=self.user, listing=self.listing).exists())
+        self.assertTrue(Bookmark.objects.filter(user=self.other_user, listing=self.listing).exists())
+
+    def test_remove_also_deletes_notes(self):
+        Note.objects.create(bookmark=Bookmark.objects.get(user=self.user), text="bye")
+        self.client.post(self.remove_url)
+        self.assertEqual(Note.objects.count(), 0)
+
+
+class PrivateNoteTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+
+    def delete_url(self, note):
+        return f"/api/listings/notes/{note.id}/"
+
+    def test_add_note_saves_it(self):
+        self.client.force_login(self.user)
+        response = self.add_note("Great mentorship program")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["text"], "Great mentorship program")
+        self.assertEqual(Note.objects.filter(bookmark=self.bookmark).count(), 1)
+        notes = self.client.get(SAVED).json()["listings"][0]["notes"]
+        self.assertEqual([n["text"] for n in notes], ["Great mentorship program"])
+
+    def test_add_second_note_keeps_first(self):
+        self.client.force_login(self.user)
+        self.add_note("First reason")
+        self.add_note("Second reason")
+        notes = self.client.get(SAVED).json()["listings"][0]["notes"]
+        self.assertEqual([n["text"] for n in notes], ["First reason", "Second reason"])
+
+    def test_empty_note_not_saved(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.add_note("   ").status_code, 400)
+        self.assertEqual(Note.objects.count(), 0)
+
+    def test_malformed_body_not_saved(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.add_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Note.objects.count(), 0)
+
+    def test_notes_only_visible_to_me(self):
+        Bookmark.objects.create(user=self.other_user, listing=self.listing)
+        self.client.force_login(self.user)
+        self.add_note("My secret reason")
+        self.client.force_login(self.other_user)
+        item = self.client.get(SAVED).json()["listings"][0]
+        self.assertEqual(item["title"], "Software Intern")
+        self.assertEqual(item["notes"], [])
+
+    def test_cannot_add_note_without_bookmark(self):
+        self.client.force_login(self.other_user)
+        self.assertEqual(self.add_note("Sneaky note").status_code, 404)
+        self.assertEqual(Note.objects.count(), 0)
+
+    def test_add_note_needs_login(self):
+        self.assertEqual(self.add_note("Hello").status_code, 401)
+        self.assertEqual(Note.objects.count(), 0)
+
+    def test_add_note_get_not_allowed(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(self.add_url).status_code, 405)
+
+    def test_delete_removes_only_that_note(self):
+        keep = Note.objects.create(bookmark=self.bookmark, text="Keep this one")
+        remove = Note.objects.create(bookmark=self.bookmark, text="Remove this one")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.delete(self.delete_url(remove)).status_code, 200)
+        self.assertTrue(Note.objects.filter(id=keep.id).exists())
+        self.assertFalse(Note.objects.filter(id=remove.id).exists())
+
+    def test_cannot_delete_other_users_note(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="My note")
+        self.client.force_login(self.other_user)
+        self.assertEqual(self.client.delete(self.delete_url(note)).status_code, 404)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+    def test_delete_needs_login(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="My note")
+        self.assertEqual(self.client.delete(self.delete_url(note)).status_code, 401)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+    def test_delete_get_not_allowed(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="Still here")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(self.delete_url(note)).status_code, 405)
+        self.assertTrue(Note.objects.filter(id=note.id).exists())
+
+    def test_note_str(self):
+        note = Note.objects.create(bookmark=self.bookmark, text="Remember the 401k match")
+        self.assertEqual(str(note), "Remember the 401k match")
+
+
+class ProfileGateTests(TestCase):
+    def test_incomplete_profile_cannot_use_listings_api(self):
+        user = User.objects.create_user(username="nofill", password="testpass123")
+        self.client.force_login(user)
+        for url in (FEED, "/api/listings/saved/"):
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(response.json()["detail"], "Complete your profile first.")

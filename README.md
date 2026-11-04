@@ -63,7 +63,14 @@ Tests also run automatically on GitHub (GitHub Actions) for every push and pull 
 
 ### US1.1: Sign up
 New users can create an account at `/accounts/signup/`. Weak passwords (too short, too common,
-or all numbers) are rejected. After signing up, users are logged in and sent to the job feed.
+or all numbers) are rejected. After signing up, users are logged in and sent to step 2.
+
+### US1.2 / US1.3: Profile step and email verification
+Step 2 asks for first name, last name and email (one account per email, ignoring case).
+Step 3 emails a 6-digit code that works for 10 minutes; 5 wrong guesses lock it, and
+"Resend code" sends a new one at most once a minute. Until both steps are done, the site
+sends the user back to the step they owe, and the `/api/` endpoints refuse them.
+If `EMAIL_HOST` is not set in prod, step 3 is skipped so new users don't get stuck.
 
 ### US2.1: Resume upload
 Logged-in users can upload a resume (PDF, DOC, or DOCX, up to 5 MB) at `/resumes/upload/`.
@@ -99,6 +106,16 @@ delete alerts. The Notification History page lists past alerts and the listings 
 triggered them. Matching runs with `python manage.py run_alert_matching` (schedule it hourly).
 Email alerts need the email settings below.
 
+## Azure deployment (gateway -> web + api)
+
+All UI is React (`frontend/`), served by `app-pathfinder-prod-web` (`pm2 serve --spa`). The public
+origin is the nginx gateway (`app-pathfinder-prod-gateway`, `path-finders.app`), which sends only
+`/api/`, `/admin/`, `/static/` and `/media/` to Django (`app-pathfinder-prod-api`) and everything
+else to the React app, so `/login`, `/feed`, `/saved` and `/resumes/...` are client-side routes.
+Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform`; deploys run from
+`.github/workflows/deploy.yml` on pushes to `main`. In local dev, Vite proxies the same prefixes to
+`localhost:8000` (`API_ORIGIN` overrides it).
+
 ## Deployment settings (Railway)
 
 > ⚠️ **Set these on the Railway backend service.** The backend refuses to start without
@@ -110,7 +127,7 @@ Email alerts need the email settings below.
 | `SECRET_KEY` | **Yes** | long random string | Django signing key |
 | `ALLOWED_HOSTS` | **Yes** | `pathfinder-team2.up.railway.app` | Domains the backend answers for |
 | `DATABASE_URL` | **Yes** | `postgres://user:pass@host:5432/db` | Production database |
-| `EMAIL_HOST` | For email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
+| `EMAIL_HOST` | For sign-up codes and email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
 | `EMAIL_HOST_USER` | For email alerts | `alerts@yourdomain.com` | SMTP login |
 | `EMAIL_HOST_PASSWORD` | For email alerts | app password | SMTP password (use an app password, never a personal one) |
 | `DEFAULT_FROM_EMAIL` | Recommended | `Pathfinder <alerts@yourdomain.com>` | "From" address on alert emails (defaults to `EMAIL_HOST_USER`) |

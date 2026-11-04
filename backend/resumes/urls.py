@@ -1,15 +1,11 @@
-# Imports Django's tool for connecting a URL to a view
 from django.urls import path
 
-# Imports the views from this resumes app
-from . import views
+from . import api
 
-
-# Namespaces our URLs so Django can tell them apart from other apps
+# Mounted at /api/resumes/ ; the React app serves the /resumes/... pages.
 app_name = "resumes"
 
-
-# Connects the upload URL to the upload_resume view
 urlpatterns = [
-    path("upload/", views.upload_resume, name="upload"),
+    path("", api.resumes, name="upload"),
+    path("<int:resume_id>/feedback/", api.resume_feedback, name="feedback"),
 ]

@@ -1,0 +1,44 @@
+/* Listings pages. Uses shell variables when present, with fallbacks. */
+.listings-page { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+.listings-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.listings-list { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 12px; }
+.listings-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; }
+
+.listing { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; }
+.listing h3 { margin: 0 0 4px; }
+.listing p { margin: 0; opacity: 0.75; }
+.listing-actions { display: flex; align-items: center; gap: 8px; }
+
+.bookmark-button { background: none; border: none; color: inherit; cursor: pointer; padding: 8px; border-radius: 50%; }
+.bookmark-button:hover { background: rgba(127, 127, 127, 0.18); }
+.bookmark-button:focus-visible, .credscore-tooltip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.credscore { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; color: #222; }
+.credscore--red { background: #e57373; }
+.credscore--orange { background: #ffb74d; }
+.credscore--yellow { background: #fff176; }
+.credscore--green { background: #81c784; }
+.credscore--unscored { background: #e0e0e0; color: #555; }
+.credscore-tooltip { position: relative; display: inline-flex; cursor: help; border-radius: 50%; }
+.credscore-reasons { position: absolute; z-index: 1; right: 0; bottom: 100%; width: min(240px, calc(100vw - 48px)); padding: 10px 12px; border-radius: 6px; background: #fff; color: #333; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-size: 14px; font-weight: normal; line-height: 1.4; visibility: hidden; opacity: 0; transition: opacity 150ms ease; }
+.credscore-tooltip:hover .credscore-reasons, .credscore-tooltip:focus .credscore-reasons { visibility: visible; opacity: 1; }
+
+.saved-listing { align-items: flex-start; flex-wrap: wrap; }
+.saved-info { flex: 1 1 240px; min-width: 0; }
+.notes { list-style: none; margin: 8px 0 0; padding: 0; }
+.note { display: flex; align-items: center; gap: 6px; font-style: italic; margin-bottom: 4px; overflow-wrap: anywhere; }
+.delete-note-button { border: none; background: none; color: #b00020; font-size: 18px; line-height: 1; padding: 2px 6px; cursor: pointer; border-radius: 4px; }
+.delete-note-button:hover { background: #fde8eb; }
+.actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.note-form { display: flex; flex-direction: column; gap: 6px; }
+.note-form textarea { width: 240px; max-width: 100%; box-sizing: border-box; padding: 6px; font: inherit; resize: vertical; }
+.listings-danger { color: #b00020; border-color: #e5a0a8; }
+
+.confirm-dialog { border: none; border-radius: 12px; padding: 20px 24px; max-width: min(380px, calc(100vw - 32px)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.confirm-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 600px) {
+  .listing { flex-wrap: wrap; }
+  .actions, .note-form, .note-form textarea { width: 100%; }
+}

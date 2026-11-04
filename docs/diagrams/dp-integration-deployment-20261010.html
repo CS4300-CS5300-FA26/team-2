@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagram</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #bf4520;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1240px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 1200px; display: block; }
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">DP Integration · Diagram Design</p>
+    <h1>Pathfinder integration topology</h1>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1200 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="pathfinder-dpint-title pathfinder-dpint-desc">
+        <title id="pathfinder-dpint-title">Pathfinder integration topology</title>
+        <desc id="pathfinder-dpint-desc">Browser and GitHub feed the platform layer, where GitHub source-deploys straight to the Django backend App Service (no container registry) and the Django API serves requests and reads/writes Postgres, while the frontend App Service and a planned Grafana surface consume from the API; Key Vault authenticates the whole platform layer rather than any single component.</desc>
+        <defs>
+          <marker id="arrow"        markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#bf4520"/></marker>
+          <marker id="arrow-link"   markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#2e5aa8"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- ===== Platform zone (drawn before arrows/nodes) ===== -->
+        <rect x="260" y="72" width="696" height="336" rx="8" fill="rgba(45,49,66,0.025)" stroke="rgba(45,49,66,0.32)" stroke-width="0.8"/>
+        <rect x="548" y="75" width="120" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="608" y="84" fill="#5a6580" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.14em">DATA PLATFORM</text>
+
+        <!-- No-registry note: fills the space where a build/registry bar used to sit -->
+        <text x="608" y="128" fill="rgba(79,93,117,0.7)" font-size="7.5" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.02em">no container registry, Oryx builds straight from source on push</text>
+
+        <!-- ===== Arrows (before node boxes) ===== -->
+
+        <!-- Source: Browser -> Backend App Service (platform row), entry left edge -->
+        <path d="M200,124 H230 Q238,124 238,132 V196 Q238,204 246,204 H276" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <rect x="220" y="152" width="40" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="240" y="161" fill="#5a6580" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">HTTPS</text>
+
+        <!-- Source: GitHub -> Backend App Service (platform row), entry left edge: direct source deploy, no registry in between -->
+        <path d="M200,212 H246 Q254,212 254,208 V208 H276" fill="none" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <rect x="216" y="188" width="52" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="242" y="197" fill="#5a6580" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">DEPLOY</text>
+
+        <!-- Internal: Backend App Service (row) -> Postgres (bar), vertical drop. Both focal: primary/accent. -->
+        <path d="M608,248 V264" fill="none" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <rect x="590" y="248" width="32" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="606" y="257" fill="#bf4520" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SQL</text>
+
+        <!-- Serve-flow: Backend App Service -> Frontend App Service (consumer0). Focal-touching: primary/accent. -->
+        <path d="M940,188 H962 Q970,188 970,180 V132 Q970,124 978,124 H1000" fill="none" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <rect x="946" y="150" width="56" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="974" y="159" fill="#bf4520" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">REST+CORS</text>
+
+        <!-- Serve-flow: Backend App Service -> Grafana (consumer1, planned). Focal-touching: primary/accent. -->
+        <line x1="940" y1="212" x2="1000" y2="212" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <rect x="950" y="192" width="44" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="972" y="201" fill="#bf4520" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">METRICS</text>
+
+        <!-- Footer: Key Vault -> platform zone bottom edge (AUTH). Never to a specific component. -->
+        <path d="M608,460 V408" fill="none" stroke="#bf4520" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-accent)"/>
+        <rect x="590" y="418" width="36" height="12" rx="2" fill="#f5f5f5"/>
+        <text x="608" y="427" fill="#bf4520" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">AUTH</text>
+
+        <!-- ===== Source column (left) ===== -->
+
+        <!-- Browser -->
+        <rect x="40" y="92" width="160" height="64" rx="6" fill="#f5f5f5"/>
+        <rect x="40" y="92" width="160" height="64" rx="6" fill="rgba(79,93,117,0.06)" stroke="#5a6580" stroke-width="1"/>
+        <text x="120" y="120" fill="#2d3142" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Browser</text>
+        <text x="120" y="134" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">signup · upload</text>
+
+        <!-- GitHub -->
+        <rect x="40" y="180" width="160" height="64" rx="6" fill="#f5f5f5"/>
+        <rect x="40" y="180" width="160" height="64" rx="6" fill="rgba(79,93,117,0.06)" stroke="#5a6580" stroke-width="1"/>
+        <text x="120" y="208" fill="#2d3142" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">GitHub</text>
+        <text x="120" y="222" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">CI · source deploy</text>
+
+        <!-- ===== Platform components ===== -->
+
+        <!-- Backend App Service row (focal) -->
+        <rect x="276" y="160" width="664" height="88" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1"/>
+        <rect x="284" y="166" width="32" height="12" rx="2" fill="transparent" stroke="rgba(191,69,32,0.40)" stroke-width="0.8"/>
+        <text x="300" y="175" fill="rgba(191,69,32,0.85)" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.08em">SERVE</text>
+        <text x="608" y="204" fill="#bf4520" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Backend App Service</text>
+        <text x="608" y="218" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">Django · Python 3.12 · VNet-integrated</text>
+
+        <!-- Postgres bar (focal) -->
+        <rect x="276" y="264" width="664" height="56" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="0.8"/>
+        <text x="608" y="288" fill="#bf4520" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Postgres</text>
+        <text x="608" y="302" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">STORE · Flexible Server · no HA</text>
+
+        <!-- ===== Consumer column (right) ===== -->
+
+        <!-- Frontend App Service -->
+        <rect x="1000" y="92" width="160" height="64" rx="6" fill="#f5f5f5"/>
+        <rect x="1000" y="92" width="160" height="64" rx="6" fill="rgba(79,93,117,0.06)" stroke="#5a6580" stroke-width="1"/>
+        <text x="1080" y="120" fill="#2d3142" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Frontend App Service</text>
+        <text x="1080" y="134" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">React · Oryx build</text>
+
+        <!-- Grafana (planned) -->
+        <rect x="1000" y="180" width="160" height="64" rx="6" fill="#f5f5f5"/>
+        <rect x="1000" y="180" width="160" height="64" rx="6" fill="rgba(79,93,117,0.06)" stroke="#5a6580" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="1080" y="208" fill="#2d3142" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Grafana</text>
+        <text x="1080" y="222" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">Managed · planned</text>
+
+        <!-- ===== Footer (cross-cutting identity) ===== -->
+        <rect x="40" y="460" width="1120" height="56" rx="6" fill="rgba(184,84,80,0.06)" stroke="rgba(184,84,80,0.35)" stroke-width="0.8"/>
+        <text x="608" y="484" fill="#b85450" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Azure Key Vault</text>
+        <text x="608" y="498" fill="#4f5d75" font-size="9" font-family="var(--font-mono)" text-anchor="middle">secrets · App Service Key Vault reference · authenticates every platform component</text>
+
+        <!-- ===== Legend ===== -->
+        <line x1="40" y1="548" x2="1160" y2="548" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+        <text x="40" y="564" fill="#4f5d75" font-size="8" font-family="var(--font-mono)" letter-spacing="0.14em">LEGEND</text>
+        <line x1="150" y1="560" x2="178" y2="560" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+        <text x="184" y="564" fill="#4f5d75" font-size="9" font-family="var(--font-mono)">primary (focal)</text>
+        <line x1="320" y1="560" x2="348" y2="560" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        <text x="354" y="564" fill="#4f5d75" font-size="9" font-family="var(--font-mono)">secondary</text>
+        <line x1="470" y1="560" x2="498" y2="560" stroke="#4f5d75" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <text x="504" y="564" fill="#4f5d75" font-size="9" font-family="var(--font-mono)">trigger (source deploy)</text>
+        <line x1="660" y1="560" x2="688" y2="560" stroke="#bf4520" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-accent)"/>
+        <text x="694" y="564" fill="#4f5d75" font-size="9" font-family="var(--font-mono)">auth (layer-wide)</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
