@@ -73,7 +73,7 @@ export function SignupPage() {
   const { submit, busy, err, general } = useAuthForm("/api/auth/signup", () => nav("/signup/profile", { replace: true }));
   if (user) return <Navigate to="/feed" replace />;
   return (
-    <Shell title="Create your account" subtitle="Step 1 of 2: choose a username and password.">
+    <Shell title="Create your account" subtitle="Step 1 of 3: choose a username and password.">
       <form className="bare" onSubmit={submit}>
         {general && <Alert>{general}</Alert>}
         <Field label="Username" name="username" autoComplete="username" required autoFocus error={err("username")} hint="Letters, digits and @/./+/-/_ only." />
@@ -89,9 +89,9 @@ export function SignupPage() {
 export function ProfilePage() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const { submit, busy, err, general } = useAuthForm("/api/auth/signup/profile", () => nav("/feed", { replace: true }));
+  const { submit, busy, err, general } = useAuthForm("/api/auth/signup/profile", (u) => nav(u.email_verified ? "/feed" : "/signup/verify", { replace: true }));
   return (
-    <Shell title="Complete your profile" subtitle="Step 2 of 2: tell us a bit about yourself. This step is required.">
+    <Shell title="Complete your profile" subtitle="Step 2 of 3: tell us a bit about yourself. This step is required.">
       <form className="bare" onSubmit={submit}>
         {general && <Alert>{general}</Alert>}
         <Field label="First name" name="first_name" autoComplete="given-name" required defaultValue={user?.first_name} error={err("first_name")} />
@@ -99,6 +99,35 @@ export function ProfilePage() {
         <Field label="Email" name="email" type="email" autoComplete="email" required defaultValue={user?.email} error={err("email")} />
         <Button variant="primary" block type="submit" disabled={busy}>{busy ? "Saving..." : "Finish"}</Button>
       </form>
+    </Shell>
+  );
+}
+
+export function VerifyPage() {
+  const nav = useNavigate();
+  const { user } = useAuth();
+  const { submit, busy, err, general } = useAuthForm("/api/auth/signup/verify", () => nav("/feed", { replace: true }));
+  const [status, setStatus] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const resend = async () => {
+    setStatus(null);
+    try {
+      const { detail } = await apiPost<{ detail: string }>("/api/auth/signup/resend");
+      setStatus({ kind: "success", text: detail });
+    } catch (e) {
+      setStatus({ kind: "error", text: e instanceof ApiError && e.data?.detail ? e.data.detail : "Couldn't send a new code. Try again." });
+    }
+  };
+  if (user?.email_verified) return <Navigate to="/feed" replace />;
+  if (user && !user.profile_complete) return <Navigate to="/signup/profile" replace />;
+  return (
+    <Shell title="Verify your email" subtitle={`Step 3 of 3: we sent a 6-digit code to ${user?.email}. It works for 10 minutes.`}>
+      <form className="bare" onSubmit={submit}>
+        {general && <Alert>{general}</Alert>}
+        {status && <Alert kind={status.kind}>{status.text}</Alert>}
+        <Field label="Verification code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required autoFocus error={err("code")} />
+        <Button variant="primary" block type="submit" disabled={busy}>{busy ? "Checking..." : "Verify"}</Button>
+      </form>
+      <p className="muted">No email? <Button variant="ghost" size="sm" onClick={resend}>Resend code</Button></p>
     </Shell>
   );
 }

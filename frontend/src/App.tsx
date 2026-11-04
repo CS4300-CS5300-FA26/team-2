@@ -11,9 +11,9 @@ import PageHeader from "./components/PageHeader";
  * The shell auto-collects them with import.meta.glob. Optional `handle` on a route:
  *   nav?: string        label -> shows a top-nav link (only when it is also reachable)
  *   order?: number      nav sort order (default 100)
- *   protected?: boolean require login; redirects to /login?next=... and, until the
- *                       signup profile is complete, to /signup/profile
- *   allowIncomplete?: boolean  protected, but skip the profile-complete redirect
+ *   protected?: boolean require login; redirects to /login?next=... and, until sign-up
+ *                       is finished, to /signup/profile or /signup/verify
+ *   allowIncomplete?: boolean  protected, but skip the unfinished-sign-up redirects
  * Logged-in user anywhere: `const { user } = useAuth()` from "./auth".
  */
 interface Handle { nav?: string; order?: number; protected?: boolean; allowIncomplete?: boolean }
@@ -26,7 +26,8 @@ function RequireAuth({ allowIncomplete, children }: { allowIncomplete?: boolean;
   const loc = useLocation();
   if (loading) return <p className="muted" role="status">Loading...</p>;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
-  if (!user.profile_complete && !allowIncomplete) return <Navigate to="/signup/profile" replace />;
+  if (!allowIncomplete && !user.profile_complete) return <Navigate to="/signup/profile" replace />;
+  if (!allowIncomplete && !user.email_verified) return <Navigate to="/signup/verify" replace />;
   return <>{children}</>;
 }
 
