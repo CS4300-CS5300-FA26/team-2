@@ -343,6 +343,8 @@ class ImportJobsTests(ApiTestCase):
         # look at the request our code tried to send
         request = mock_urlopen.call_args[0][0]
         self.assertEqual(request.get_header("X-api-key"), "test-key")
+        # we name ourselves, because JobDataLake blocks the default "Python-urllib" name
+        self.assertEqual(request.get_header("User-agent"), "Pathfinder/1.0 (CS4300 student project)")
         self.assertIn("q=data+analyst", request.full_url)
         self.assertIn("per_page=5", request.full_url)
         self.assertIn("countries=US", request.full_url)

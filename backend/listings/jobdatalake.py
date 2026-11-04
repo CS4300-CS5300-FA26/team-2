@@ -43,8 +43,16 @@ def search_jobs(api_key, query, limit, country):
     # build the full address, e.g. .../v1/jobs?q=software+intern&per_page=20&...
     full_url = API_URL + "?" + urlencode(options)
 
-    # attach our secret key as a header (that's how the API knows it's us)
-    request = Request(full_url, headers={"X-API-Key": api_key})
+    # headers are extra info sent along with the request:
+    #   X-API-Key  = our secret key (that's how the API knows it's us)
+    #   User-Agent = the name of our app. JobDataLake's security (Cloudflare)
+    #                blocks Python's default name "Python-urllib" with a 403
+    #                "error code: 1010", so we give our own name instead.
+    headers = {
+        "X-API-Key": api_key,
+        "User-Agent": "Pathfinder/1.0 (CS4300 student project)",
+    }
+    request = Request(full_url, headers=headers)
 
     try:
         # send the request (give up after 30 seconds) and read the JSON reply
