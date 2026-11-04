@@ -9,7 +9,7 @@ from listings.models import Bookmark, Listing
 # GIVEN: one job is already saved for a logged-in user
 @given("a listing is in my saved jobs list")
 def step_listing_is_saved(context):
-    context.user = User.objects.create_user(username="removeuser", password="testpass123")
+    context.user = User.objects.create_user(username="removeuser", password="testpass123", first_name="Test", last_name="User", email="removeuser@example.com")
     context.test.client.force_login(context.user)
 
     context.listing = Listing.objects.create(title="Backend Intern", company="Northrop")

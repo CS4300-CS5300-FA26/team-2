@@ -20,7 +20,7 @@ def step_bookmarked_listings(context):
     # Anything we put in it here (like context.user) we can use in later steps.
 
     # make a fake user for the test
-    context.user = User.objects.create_user(username="testuser", password="testpass123")
+    context.user = User.objects.create_user(username="testuser", password="testpass123", first_name="Test", last_name="User", email="testuser@example.com")
 
     # log in as that user (so we don't have to type a password)
     context.test.client.force_login(context.user)

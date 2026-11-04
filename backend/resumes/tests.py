@@ -33,6 +33,9 @@ class ResumeUploadTests(TestCase):
         return get_user_model().objects.create_user(
             username=username,
             password="test-password-123",
+            first_name="Test",
+            last_name="User",
+            email=f"{username}@example.com",
         )
 
     def sign_in(self):

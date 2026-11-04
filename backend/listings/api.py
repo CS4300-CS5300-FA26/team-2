@@ -1,5 +1,6 @@
 """JSON API for the job feed and saved jobs (session auth, 401 JSON when logged out)."""
 import json
+from accounts.api import is_profile_complete
 from functools import wraps
 
 from django.http import JsonResponse
@@ -14,6 +15,8 @@ def api_login_required(view):
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({"detail": "Authentication required."}, status=401)
+        if not is_profile_complete(request.user):
+            return JsonResponse({"detail": "Complete your profile first."}, status=403)
         return view(request, *args, **kwargs)
 
     return wrapper
