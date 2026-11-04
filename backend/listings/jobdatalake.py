@@ -31,7 +31,7 @@ class JobDataLakeError(Exception):
 # ONE call to this function = ONE credit, no matter how many jobs come back.
 # Returns a list of jobs (each job is a dictionary).
 # ------------------------------------------------------------
-def search_jobs(api_key, query, limit, country):
+def search_jobs(api_key, query, limit, country, job_function=""):
     # the search options, written the way the API expects them
     options = {
         "q": query,                   # keywords, like "software intern"
@@ -39,6 +39,11 @@ def search_jobs(api_key, query, limit, country):
         "countries": country,         # like "US"
         "sort_by": "posted_at:desc",  # newest jobs first
     }
+
+    # Sprint 3: only this kind of job, like "eng" for tech/engineering jobs.
+    # If it's empty we leave it out, so every kind of job comes back.
+    if job_function:
+        options["job_function"] = job_function
 
     # build the full address, e.g. .../v1/jobs?q=software+intern&per_page=20&...
     full_url = API_URL + "?" + urlencode(options)

@@ -20,10 +20,13 @@ class Command(BaseCommand):
 
     # the options you can type after the command name
     def add_arguments(self, parser):
-        parser.add_argument("--query", default="software engineer", help="keywords to search for")
+        # Sprint 3: "*" means any job title (--function below narrows it to tech jobs)
+        parser.add_argument("--query", default="*", help='keywords to search for ("*" = any)')
         # keep this small: each NEW listing also gets an AI credibility score (an OpenAI call)
         parser.add_argument("--limit", type=int, default=20, help="how many jobs to fetch (1-100)")
         parser.add_argument("--country", default="US", help="country code, like US")
+        # Sprint 3: tech jobs by default. Use --function "" for every kind of job.
+        parser.add_argument("--function", default="eng", help='job type, like eng or data ("" = all)')
 
     # this is what runs when you type the command
     def handle(self, *args, **options):
@@ -42,7 +45,9 @@ class Command(BaseCommand):
 
         # ask JobDataLake for jobs (this is the 1 credit)
         try:
-            jobs = search_jobs(api_key, options["query"], limit, options["country"])
+            # .lower() turns "ENG" into "eng", the way the API expects it
+            job_function = options["function"].lower()
+            jobs = search_jobs(api_key, options["query"], limit, options["country"], job_function)
         except JobDataLakeError as error:
             # turn our error into a clear message instead of a crash
             raise CommandError(str(error))
