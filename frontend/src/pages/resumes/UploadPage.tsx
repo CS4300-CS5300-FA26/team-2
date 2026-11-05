@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./resumes.css";
-import { ApiError, listResumes, uploadResume, type Resume } from "./http";
+import {ApiError, deleteResume, listResumes, replaceResume, uploadResume, type Resume,} from "./http";
 
 const ALLOWED = [".pdf", ".doc", ".docx"];
 const MAX = 5 * 1024 * 1024;
@@ -23,6 +23,7 @@ export default function UploadPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [drag, setDrag] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [workingResumeId, setWorkingResumeId] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -52,7 +53,70 @@ export default function UploadPage() {
       if (input.current) input.current.value = "";
     }
   }
+  async function replace(id: number, file: File | undefined) {
+    if (!file) return;
 
+    setDone(null);
+
+    const validationError = validate(file);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setError(null);
+    setWorkingResumeId(id);
+
+    try {
+      await replaceResume(id, file);
+      setDone(`Replaced resume with ${file.name}`);
+      load();
+    } catch (error) {
+      const apiError = error as ApiError;
+
+      if (apiError.status === 401) {
+        toLogin();
+        return;
+      }
+
+      setError(
+        apiError.errors?.file?.join(" ") ??
+          apiError.message,
+      );
+    } finally {
+      setWorkingResumeId(null);
+    }
+  }
+
+  async function remove(resume: Resume) {
+    const confirmed = window.confirm(
+      `Delete ${resume.name}? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setDone(null);
+    setError(null);
+    setWorkingResumeId(resume.id);
+
+    try {
+      await deleteResume(resume.id);
+      setDone(`Deleted ${resume.name}`);
+      load();
+    } catch (error) {
+      const apiError = error as ApiError;
+
+      if (apiError.status === 401) {
+        toLogin();
+        return;
+      }
+
+      setError(apiError.message);
+    } finally {
+      setWorkingResumeId(null);
+    }
+  }
   const busy = progress !== null;
   return (
     <div className="resumes-page">
@@ -120,9 +184,52 @@ export default function UploadPage() {
                     </a>
                     <span className="muted">Uploaded {new Date(r.uploaded_at).toLocaleString()}</span>
                   </div>
-                  <Link className="btn" to={`/resumes/${r.id}/feedback`}>
-                    Get AI feedback
-                  </Link>
+                  <div className="resume-actions">
+                      {workingResumeId === r.id ? (
+                        <span
+                          className="btn"
+                          aria-disabled="true"
+                        >
+                          Get AI feedback
+                        </span>
+                      ) : (
+                        <Link
+                          className="btn"
+                          to={`/resumes/${r.id}/feedback`}
+                        >
+                          Get AI feedback
+                        </Link>
+                      )}
+
+                      <label
+                        className="btn"
+                        htmlFor={`replace-resume-${r.id}`}
+                        aria-disabled={workingResumeId === r.id}
+                      >
+                        Replace
+                      </label>
+
+                      <input
+                        id={`replace-resume-${r.id}`}
+                        className="sr-only"
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        disabled={workingResumeId === r.id}
+                        onChange={(event) => {
+                          replace(r.id, event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        disabled={workingResumeId === r.id}
+                        onClick={() => remove(r)}
+                      >
+                        {workingResumeId === r.id ? "Working..." : "Delete"}
+                      </button>
+                    </div>
                 </li>
               ))}
             </ul>

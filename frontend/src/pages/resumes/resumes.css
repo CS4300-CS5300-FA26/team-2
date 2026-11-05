@@ -22,7 +22,28 @@
 .resume-list .muted { margin: 4px 0 0; font-size: .85rem; }
 .suggestions { margin: 0; padding-left: 1.4rem; display: grid; gap: 14px; line-height: 1.55; }
 .suggestions li::marker { color: #4f46e5; font-weight: 700; }
+.suggestions li { background: #f9fafb; color: #1f2937; border: 1px solid #e5e7eb;}
 .skeleton { border-radius: 8px; background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: resumes-shimmer 1.2s infinite; }
 @keyframes resumes-shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 @media (max-width: 600px) { .resumes-page .card { padding: 20px 16px; } .resume-list li .btn { width: 100%; text-align: center; box-sizing: border-box; } }
+
+.resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.resumes-page .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.resumes-page .btn-danger {
+  background: #dc2626;
+}
+
+.resumes-page .btn-danger:hover {
+  background: #b91c1c;
+}
