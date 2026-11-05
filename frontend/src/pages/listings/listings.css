@@ -42,3 +42,7 @@
   .listing { flex-wrap: wrap; }
   .actions, .note-form, .note-form textarea { width: 100%; }
 }
+
+/* Sprint 3: location and Apply link under the company name */
+.job-details { font-size: 14px; margin-top: 4px !important; }
+.job-details a { font-weight: bold; margin-left: 6px; }

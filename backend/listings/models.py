@@ -9,6 +9,18 @@ class Listing(models.Model):
     company = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    #Sprint 3: details for real jobs imported from the JobDataLake API.
+    # All optional, so listings added by hand in admin still work.
+    # the job's ID in JobDataLake, so the same job is never imported twice
+    # (null for hand-added listings; unique still allows many nulls)
+    external_id = models.CharField(max_length=200, unique=True, null=True, blank=True)
+    # where the job is, e.g. "San Francisco, CA; Remote"
+    location = models.CharField(max_length=300, blank=True, default="")
+    # fully_remote, hybrid, or on_site
+    remote_type = models.CharField(max_length=20, blank=True, default="")
+    # the company's page for applying to this job
+    apply_url = models.URLField(max_length=500, blank=True, default="")
+
     # How the listing shows uo
     def __str__(self):
         return self.title + " at " + self.company

@@ -29,6 +29,10 @@ def _listing(listing, saved):
         "id": listing.id,
         "title": listing.title,
         "company": listing.company,
+        # Sprint 3: details from imported JobDataLake jobs (empty for hand-added ones)
+        "location": listing.location,
+        "remote_type": listing.remote_type,
+        "apply_url": listing.apply_url,
         "saved": saved,
         "score": score.score if has_score else None,
         "reasoning": (score.reasoning or "") if has_score else "",
