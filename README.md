@@ -3,7 +3,7 @@ CS 4300/5300 Fall 2026, Team 2 group project
 
 Pathfinder helps job seekers find listings, save the ones they like, and keep track of their search.
 
-**Live site:** https://pathfinder-team2.up.railway.app
+**Live site:** [https://pathfinder-team2.up.railway.app](https://path-finders.app/)
 
 **Built with:** Django (backend and pages), React + TypeScript (frontend), PostgreSQL (production database), deployed on Railway.
 
