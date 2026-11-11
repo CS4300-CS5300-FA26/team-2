@@ -78,6 +78,15 @@ def search_jobs(api_key, query, limit, country, job_function=""):
     except URLError as error:
         # we couldn't reach the website at all (no internet, site down, etc.)
         raise JobDataLakeError(f"Could not reach JobDataLake: {error.reason}")
+    except ValueError:
+        # Sprint 3: the reply wasn't JSON at all (for example, an error web page)
+        raise JobDataLakeError("JobDataLake sent back something we couldn't read.")
+
+    # Sprint 3: check the reply looks like the docs say: {"jobs": [ ... ]}
+    # isinstance(x, dict) asks "is x a dictionary?", and list means "a list".
+    # If it doesn't look right, stop BEFORE saving anything.
+    if not isinstance(data, dict) or not isinstance(data.get("jobs", []), list):
+        raise JobDataLakeError("JobDataLake sent back a reply in an unexpected format.")
 
     # the jobs are in the "jobs" part of the reply (empty list if it's missing)
     return data.get("jobs", [])
@@ -94,6 +103,17 @@ def safe_link(url):
 
 
 # ------------------------------------------------------------
+# Sprint 3: only keep real text.
+# If the API sends a number, a list, or nothing where we expect text,
+# we use "" (empty text) instead, so nothing crashes.
+# ------------------------------------------------------------
+def as_text(value):
+    if isinstance(value, str):
+        return value
+    return ""
+
+
+# ------------------------------------------------------------
 # Save the jobs we don't have yet.
 # Returns two numbers: (how many we added, how many we skipped).
 # ------------------------------------------------------------
@@ -102,8 +122,14 @@ def save_jobs(jobs):
     skipped = 0
 
     for job in jobs:
+        # Sprint 3: skip anything that isn't a job (a job is a dictionary)
+        if not isinstance(job, dict):
+            skipped = skipped + 1
+            continue
+
         # every job has its own ID in JobDataLake, called a "handle"
-        handle = job.get("job_handle")
+        # ([:200] cuts it to fit our database field)
+        handle = as_text(job.get("job_handle"))[:200]
 
         # skip it if it has no ID, or if we already imported it before
         if not handle or Listing.objects.filter(external_id=handle).exists():
@@ -112,18 +138,22 @@ def save_jobs(jobs):
 
         # "locations" is a list, like ["Denver, CO", "Remote"].
         # Join it into one piece of text: "Denver, CO; Remote"
-        locations = job.get("locations") or []
-        location_text = "; ".join(locations)
+        # Sprint 3: if it isn't a list, use an empty one,
+        # and only join the places that are real text
+        locations = job.get("locations")
+        if not isinstance(locations, list):
+            locations = []
+        location_text = "; ".join(place for place in locations if isinstance(place, str))
 
         # make the new Listing.
         # "or ..." gives a fallback if the API left something blank,
         # and [:200] cuts text to fit our database fields.
         Listing.objects.create(
             external_id=handle,
-            title=(job.get("title") or "Untitled job")[:200],
-            company=(job.get("company_name") or "Unknown company")[:200],
+            title=(as_text(job.get("title")) or "Untitled job")[:200],
+            company=(as_text(job.get("company_name")) or "Unknown company")[:200],
             location=location_text[:300],
-            remote_type=(job.get("remote_type") or "")[:20],
+            remote_type=as_text(job.get("remote_type"))[:20],
             apply_url=safe_link(job.get("url")),
         )
         added = added + 1
