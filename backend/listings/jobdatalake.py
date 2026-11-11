@@ -84,12 +84,14 @@ def search_jobs(api_key, query, limit, country, job_function=""):
 
     # Sprint 3: check the reply looks like the docs say: {"jobs": [ ... ]}
     # isinstance(x, dict) asks "is x a dictionary?", and list means "a list".
+    # "jobs" must be there: if it's missing, data.get("jobs") gives None,
+    # which isn't a list, so we stop instead of pretending there were 0 jobs.
     # If it doesn't look right, stop BEFORE saving anything.
-    if not isinstance(data, dict) or not isinstance(data.get("jobs", []), list):
+    if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):
         raise JobDataLakeError("JobDataLake sent back a reply in an unexpected format.")
 
-    # the jobs are in the "jobs" part of the reply (empty list if it's missing)
-    return data.get("jobs", [])
+    # the jobs are in the "jobs" part of the reply
+    return data["jobs"]
 
 
 # ------------------------------------------------------------
