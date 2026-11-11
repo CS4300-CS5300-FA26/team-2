@@ -46,10 +46,22 @@ export default function SavedPage() {
   // load my saved jobs, and load them again whenever the filter changes.
   // Sprint 3 (US4.6): with a filter, ask the API for only that status.
   useEffect(() => {
+    // Sprint 3: if the filter changes again before this request finishes,
+    // "stale" becomes true and we ignore this older reply. That way a slow,
+    // old reply can't replace the list for the filter that's picked now.
+    let stale = false;
     const url = filter ? `/api/listings/saved/?status=${filter}` : "/api/listings/saved/";
     apiGet<{ listings: Listing[] }>(url)
-      .then((d) => setListings(d.listings))
-      .catch(fail);
+      .then((d) => {
+        if (!stale) setListings(d.listings);
+      })
+      .catch((e) => {
+        if (!stale) fail(e);
+      });
+    // React runs this "clean up" function when the filter changes (or the page closes)
+    return () => {
+      stale = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
