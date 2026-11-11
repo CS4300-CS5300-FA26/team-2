@@ -1,0 +1,17 @@
+# Settings for Flake8, the Python linter (Sprint 3).
+# Flake8 checks our Python code for style problems and simple mistakes.
+# Run it from the backend folder with:  flake8
+[flake8]
+# the longest a line can be (the default is 79, which is very short)
+max-line-length = 150
+
+# folders Flake8 should skip:
+#   migrations = files Django writes for us
+#   venv / .venv = installed packages, not our code
+exclude = */migrations/*, venv, .venv, staticfiles, __pycache__
+
+# Tests and Behave steps have long lines on purpose (like creating a test user
+# with all their details on one line), so we allow long lines (E501) there.
+per-file-ignores =
+    */tests.py: E501
+    features/steps/*.py: E501
