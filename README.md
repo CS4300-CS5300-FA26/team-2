@@ -99,6 +99,16 @@ Each job on the Saved Jobs page has a note box. Type why you saved the job and c
 **Add note**. You can add as many notes as you want, and each one has a small **×** to
 delete it. Notes are saved on your bookmark, so only you can see them.
 
+### Real job listings (JobDataLake)
+The job feed shows real tech jobs from companies across the US, pulled from the
+[JobDataLake API](https://jobdatalake.com). Each job shows its location, whether it's
+remote, hybrid, or on-site, and an **Apply** link to the company's page.
+Import new jobs with `python manage.py import_jobs --limit 20` (from `backend`).
+Each run uses **1 API credit**, no matter how many jobs come back, and jobs already
+saved are skipped. Options: `--query` (keywords, default any), `--function`
+(job type, default `eng`; use `""` for all), and `--limit` (1–100).
+The key goes in `backend/.env` as `JOBDATALAKE_API_KEY=...` and is **never committed**.
+
 ### US5.1–US5.6: Job alerts
 Logged-in users can create alerts from keywords, location, or job type on the Alerts page,
 choose email or in-app notifications, pick instant or daily delivery, and pause, edit, or
@@ -133,6 +143,7 @@ Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform
 | `DEFAULT_FROM_EMAIL` | Recommended | `Pathfinder <alerts@yourdomain.com>` | "From" address on alert emails (defaults to `EMAIL_HOST_USER`) |
 | `EMAIL_PORT` | Optional | `587` | Defaults to 587 |
 | `EMAIL_USE_TLS` | Optional | `True` | Defaults to True |
+| `JOBDATALAKE_API_KEY` | For real job listings | your JobDataLake key | Lets `python manage.py import_jobs` fetch jobs (1 credit per run) |
 
 > ⚠️ **Alerts only fire when the matching job runs.** Nothing schedules it automatically yet.
 > Add a Railway cron job (e.g. every hour, `0 * * * *`) that runs
@@ -165,6 +176,7 @@ This section records where and when team members used AI assistance: the tool us
 | Dominick | Claude (Anthropic) | US1.2 profile step after sign-up: profile form, step 2 view, URL, sign-up template changes, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Dominick | Claude (Anthropic) | US1.2 review fixes: middleware that sends new users back to step 2 until it's done, duplicate-email check, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Dominick | Claude (Anthropic) | US1.3 email verification: code model and migration, emailed 6-digit code, step 3 verify view, middleware check for unverified users, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Nicole | Claude (Anthropic) | Real job listings from JobDataLake: Listing fields and migration, API client, import_jobs command, tech-job filter, location and Apply link in React, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), tested the real API (and fixed a blocked request by adding a User-Agent header), checked the feed in the browser, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes

@@ -4,6 +4,7 @@ from django.test import TestCase
 from ai_intelligence.models import CredibilityScore
 
 from .models import Bookmark, Listing, Note
+from .jobdatalake import save_jobs, search_jobs  # Sprint 3: for the import tests
 
 User = get_user_model()
 
@@ -265,3 +266,293 @@ class ProfileGateTests(TestCase):
             response = self.client.get(url)
             self.assertEqual(response.status_code, 403)
             self.assertEqual(response.json()["detail"], "Complete your profile first.")
+
+#Sprint 3
+# Tests for importing real jobs from the JobDataLake API.
+#
+# IMPORTANT: these tests never call the real API.
+# "patch" swaps the real urlopen (the thing that calls the website) for a fake,
+# and we tell the fake what to reply. So the tests are fast, work offline,
+# and never spend our credits.
+
+# (these imports are down here so this whole block can be pasted at the end of the file)
+import json  # to build a fake JSON reply
+from io import BytesIO  # makes text act like a reply from a website
+from unittest.mock import patch  # swaps real code for a fake during a test
+from urllib.error import HTTPError, URLError  # the errors urlopen can raise
+
+from django.core.management import call_command  # runs "python manage.py ..." inside a test
+from django.core.management.base import CommandError
+from django.test import override_settings  # pretend a setting has a different value
+
+
+# One fake job, shaped exactly like a job in the API's real reply
+FAKE_JOB = {
+    "title": "Software Engineer Intern",
+    "company_name": "Stripe",
+    "locations": ["San Francisco, CA", "Remote"],
+    "remote_type": "hybrid",
+    "url": "https://stripe.com/jobs/123",
+    "job_handle": "stripe-software-engineer-intern-abc123",
+}
+
+
+# Helper: build a fake API reply that contains these jobs
+def fake_reply(jobs):
+    reply = {"found": len(jobs), "jobs": jobs}
+    return BytesIO(json.dumps(reply).encode())
+
+
+# override_settings gives every test in this class a pretend API key
+@override_settings(JOBDATALAKE_API_KEY="test-key")
+class ImportJobsTests(ApiTestCase):
+
+    # TEST 1: importing saves the job with all its details
+    # @patch(...) replaces urlopen, and the fake is passed in as "mock_urlopen"
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_saves_new_jobs(self, mock_urlopen):
+        # when our code calls the API, the fake replies with our one job
+        mock_urlopen.return_value = fake_reply([FAKE_JOB])
+
+        call_command("import_jobs", "--query", "software intern")
+
+        job = Listing.objects.get(external_id="stripe-software-engineer-intern-abc123")
+        self.assertEqual(job.title, "Software Engineer Intern")
+        self.assertEqual(job.company, "Stripe")
+        self.assertEqual(job.location, "San Francisco, CA; Remote")
+        self.assertEqual(job.remote_type, "hybrid")
+        self.assertEqual(job.apply_url, "https://stripe.com/jobs/123")
+
+    # TEST 2: importing the same job twice doesn't make a copy
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_skips_jobs_already_saved(self, mock_urlopen):
+        # side_effect = a list of replies, one for each call
+        mock_urlopen.side_effect = [fake_reply([FAKE_JOB]), fake_reply([FAKE_JOB])]
+
+        call_command("import_jobs")  # first time: saves the job
+        call_command("import_jobs")  # second time: same job, should be skipped
+
+        self.assertEqual(Listing.objects.filter(external_id=FAKE_JOB["job_handle"]).count(), 1)
+
+    # TEST 3: the request sends our key and the search options
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_sends_key_and_options(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs", "--query", "data analyst", "--limit", "5")
+
+        # look at the request our code tried to send
+        request = mock_urlopen.call_args[0][0]
+        self.assertEqual(request.get_header("X-api-key"), "test-key")
+        # we name ourselves, because JobDataLake blocks the default "Python-urllib" name
+        self.assertEqual(request.get_header("User-agent"), "Pathfinder/1.0 (CS4300 student project)")
+        self.assertIn("q=data+analyst", request.full_url)
+        self.assertIn("per_page=5", request.full_url)
+        self.assertIn("countries=US", request.full_url)
+
+    # TEST 4: an apply link that isn't a normal web address is not saved
+    @patch("listings.jobdatalake.urlopen")
+    def test_unsafe_apply_link_is_dropped(self, mock_urlopen):
+        # copy the fake job, then change the link to a dangerous one
+        bad_job = FAKE_JOB.copy()
+        bad_job["url"] = "javascript:alert(1)"
+        bad_job["job_handle"] = "bad-link-job"
+        mock_urlopen.return_value = fake_reply([bad_job])
+
+        call_command("import_jobs")
+
+        self.assertEqual(Listing.objects.get(external_id="bad-link-job").apply_url, "")
+
+    # TEST 5: out of credits (error 402) gives a clear error and saves nothing
+    @patch("listings.jobdatalake.urlopen")
+    def test_out_of_credits_gives_clear_error(self, mock_urlopen):
+        # side_effect = an error makes the fake RAISE that error instead of replying
+        mock_urlopen.side_effect = HTTPError("url", 402, "Payment Required", {}, None)
+        count_before = Listing.objects.count()
+
+        # the command should stop with a message that contains "out of credits"
+        with self.assertRaisesMessage(CommandError, "out of credits"):
+            call_command("import_jobs")
+
+        self.assertEqual(Listing.objects.count(), count_before)
+
+    # TEST 6: no API key gives a clear error and never calls the API
+    @override_settings(JOBDATALAKE_API_KEY="")  # pretend the key is missing
+    @patch("listings.jobdatalake.urlopen")
+    def test_missing_key_gives_clear_error(self, mock_urlopen):
+        with self.assertRaisesMessage(CommandError, "JOBDATALAKE_API_KEY"):
+            call_command("import_jobs")
+
+        mock_urlopen.assert_not_called()  # no request was sent, so no credit was spent
+
+    # TEST 7: the feed sends the location and apply link to the React page
+    def test_feed_includes_location_and_apply_link(self):
+        # give the test listing a location and link
+        self.listing.location = "Denver, CO"
+        self.listing.apply_url = "https://example.com/apply"
+        self.listing.save()
+        self.client.force_login(self.user)
+
+        item = self.client.get(FEED).json()["listings"][0]
+
+        self.assertEqual(item["location"], "Denver, CO")
+        self.assertEqual(item["apply_url"], "https://example.com/apply")
+
+    # TEST 8: if JobDataLake can't be reached, it gives a clear error
+    @patch("listings.jobdatalake.urlopen")
+    def test_network_error_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.side_effect = URLError("connection refused")
+
+        with self.assertRaisesMessage(CommandError, "Could not reach JobDataLake"):
+            call_command("import_jobs")
+
+    # TEST 9: each kind of API error gives its own clear message
+    @patch("listings.jobdatalake.urlopen")
+    def test_other_api_errors_give_clear_messages(self, mock_urlopen):
+        # error code from the API -> words we expect in the message
+        expected_messages = {
+            401: "API key is invalid",
+            429: "Too many requests",
+            500: "JobDataLake error 500",
+        }
+        for code, message in expected_messages.items():
+            # subTest shows which code failed, if one does
+            with self.subTest(code=code):
+                mock_urlopen.side_effect = HTTPError("url", code, "Error", {}, None)
+
+                with self.assertRaisesMessage(CommandError, message):
+                    call_command("import_jobs")
+
+    # TEST 10: the limit is kept between 1 and 100 (what the API allows)
+    @patch("listings.jobdatalake.urlopen")
+    def test_limit_is_kept_between_1_and_100(self, mock_urlopen):
+        # a fresh fake reply for each of the two calls
+        mock_urlopen.side_effect = [fake_reply([]), fake_reply([])]
+
+        call_command("import_jobs", "--limit", "500")  # too big
+        call_command("import_jobs", "--limit", "0")    # too small
+
+        # look at the two requests our code sent
+        first_request = mock_urlopen.call_args_list[0][0][0]
+        second_request = mock_urlopen.call_args_list[1][0][0]
+        self.assertIn("per_page=100", first_request.full_url)
+        self.assertIn("per_page=1&", second_request.full_url)
+
+
+#Sprint 3: tests for strange replies from JobDataLake.
+# The import should stop with a clear message, or skip the broken jobs,
+# instead of crashing halfway through.
+@override_settings(JOBDATALAKE_API_KEY="test-key")
+class ImportJobsBadReplyTests(ApiTestCase):
+
+    # TEST A: a reply that isn't JSON at all (like an error web page)
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_that_is_not_json_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b"<html>Something went wrong</html>")
+        count_before = Listing.objects.count()
+
+        with self.assertRaisesMessage(CommandError, "couldn't read"):
+            call_command("import_jobs")
+        self.assertEqual(Listing.objects.count(), count_before)  # nothing saved
+
+    # TEST B: JSON, but a list instead of {"jobs": [...]}
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_in_wrong_shape_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'["not", "what", "we", "expected"]')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
+    # TEST C: "jobs" is there, but it isn't a list
+    @patch("listings.jobdatalake.urlopen")
+    def test_jobs_that_are_not_a_list_give_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'{"jobs": "oops"}')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
+    # TEST E: a reply with no "jobs" at all is an error, not an empty import
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_without_jobs_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'{"found": 0}')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
+    # TEST F: JobDataLake takes too long to answer
+    @patch("listings.jobdatalake.urlopen")
+    def test_timeout_gives_clear_error(self, mock_urlopen):
+        # side_effect makes the fake RAISE this error instead of replying
+        mock_urlopen.side_effect = TimeoutError("timed out")
+
+        with self.assertRaisesMessage(CommandError, "took too long"):
+            call_command("import_jobs")
+
+    # TEST G: the same job twice is saved once, and the second copy counts as skipped
+    @patch("listings.jobdatalake.urlopen")
+    def test_same_job_twice_is_saved_once(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([FAKE_JOB, FAKE_JOB])
+
+        added, skipped = save_jobs(search_jobs("test-key", "*", 20, "US"))
+
+        self.assertEqual((added, skipped), (1, 1))
+        self.assertEqual(Listing.objects.filter(external_id=FAKE_JOB["job_handle"]).count(), 1)
+
+    # TEST D: broken jobs are skipped, and the good parts of a job are still saved
+    @patch("listings.jobdatalake.urlopen")
+    def test_broken_jobs_are_skipped(self, mock_urlopen):
+        # a job with some odd values: a number for the title,
+        # and a number and a blank mixed into the locations
+        odd_job = FAKE_JOB.copy()
+        odd_job["job_handle"] = "odd-job"
+        odd_job["title"] = 42
+        odd_job["locations"] = ["Denver, CO", 5, None]
+        # a job whose locations is plain text instead of a list
+        no_list_job = {"job_handle": "no-list-job", "locations": "Denver, CO"}
+        # "oops" and None aren't jobs at all, and 123 isn't a real ID
+        mock_urlopen.return_value = fake_reply(["oops", None, {"job_handle": 123}, odd_job, no_list_job])
+
+        call_command("import_jobs")
+
+        saved = Listing.objects.get(external_id="odd-job")
+        self.assertEqual(saved.title, "Untitled job")  # the number was ignored
+        self.assertEqual(saved.location, "Denver, CO")  # only real text was kept
+        # locations that aren't a list are left empty instead of crashing
+        self.assertEqual(Listing.objects.get(external_id="no-list-job").location, "")
+
+
+#Sprint 3: tests for importing tech jobs
+@override_settings(JOBDATALAKE_API_KEY="test-key")
+class ImportJobsFunctionTests(ApiTestCase):
+
+    # TEST 11: by default we ask for any tech (eng) job
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_asks_for_tech_jobs_by_default(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs")
+
+        # look at the request our code tried to send
+        request = mock_urlopen.call_args[0][0]
+        self.assertIn("q=%2A", request.full_url)  # "*" = any job title
+        self.assertIn("job_function=eng", request.full_url)
+
+    # TEST 12: --function picks another kind of job (uppercase works too)
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_can_ask_for_another_function(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs", "--function", "DATA")
+
+        request = mock_urlopen.call_args[0][0]
+        self.assertIn("job_function=data", request.full_url)
+
+    # TEST 13: --function "" means any kind of job, so we don't send it at all
+    @patch("listings.jobdatalake.urlopen")
+    def test_import_with_empty_function_sends_no_filter(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([])
+
+        call_command("import_jobs", "--function", "")
+
+        request = mock_urlopen.call_args[0][0]
+        self.assertNotIn("job_function=", request.full_url)

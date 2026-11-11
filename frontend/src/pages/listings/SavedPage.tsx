@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../../api/client";
-import { ConfirmDialog, Listing, Note, errorText, useAuthRedirect } from "./shared";
+import { ConfirmDialog, Listing, Note, errorText, useAuthRedirect, JobDetails } from "./shared";
 import "./listings.css";
 
 function NoteForm({ onAdd }: { onAdd: (text: string) => Promise<void> }) {
@@ -102,6 +102,7 @@ export default function SavedPage() {
             <div className="saved-info">
               <h3>{l.title}</h3>
               <p>{l.company}</p>
+              <JobDetails listing={l} />
               {!!l.notes?.length && (
                 <ul className="notes">
                   {l.notes.map((n) => (
