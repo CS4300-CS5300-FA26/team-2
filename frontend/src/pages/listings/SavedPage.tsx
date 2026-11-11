@@ -98,7 +98,20 @@ export default function SavedPage() {
     }
   }
 
-  // Sprint 3 (US4.5): runs when a status is picked from a job's dropdown
+  // Sprint 3: reload my saved jobs for the filter that's picked right now.
+  // Used after a status saves, so the list always matches the server.
+  function reloadList() {
+    const current = filterRef.current;
+    const url = current ? `/api/listings/saved/?status=${current}` : "/api/listings/saved/";
+    apiGet<{ listings: Listing[] }>(url)
+      .then((d) => {
+        // if the filter changed while we were loading, this reply is old, so skip it
+        if (filterRef.current === current) setListings(d.listings);
+      })
+      .catch(fail);
+  }
+
+  // Sprint 3 (US4.5): runs when a status is picked from a job's status bar
   async function changeStatus(l: Listing, status: string) {
     // clicking the status it already has does nothing
     if ((l.status ?? "saved") === status) return;
@@ -113,11 +126,10 @@ export default function SavedPage() {
     setListings((ls) => ls && ls.map((x) => (x.id === l.id ? { ...x, status } : x)));
     try {
       await apiPost(`/api/listings/${l.id}/status/`, { status });
-      // if a filter is on and this job no longer matches it, take it off the list
-      // (filterRef.current is the filter picked now, which may have changed during the save)
-      if (filterRef.current && status !== filterRef.current) {
-        setListings((ls) => ls && ls.filter((x) => x.id !== l.id));
-      }
+      // It saved, so reload the list for the filter picked now.
+      // This takes the job off a filter it no longer matches, and shows it
+      // on a filter it now matches (even if the filter changed during the save).
+      reloadList();
     } catch (e) {
       // It didn't save, so put the old status back on THIS job only.
       // Other jobs may have changed since the click, so we leave them alone.
