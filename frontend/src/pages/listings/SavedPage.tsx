@@ -40,6 +40,10 @@ export default function SavedPage() {
   const [confirming, setConfirming] = useState<Listing | null>(null);
   // Sprint 3 (US4.6): which status the "Show" filter is set to ("" = all)
   const [filter, setFilter] = useState("");
+  // Sprint 3: IDs of the jobs whose new status is still being saved.
+  // Their status buttons are turned off until the save finishes, so quick
+  // clicks can't reach the server out of order.
+  const [savingIds, setSavingIds] = useState<number[]>([]);
   const authRedirect = useAuthRedirect();
   const fail = (e: unknown) => { if (!authRedirect(e)) setError(errorText(e)); };
 
@@ -94,6 +98,10 @@ export default function SavedPage() {
   async function changeStatus(l: Listing, status: string) {
     // clicking the status it already has does nothing
     if ((l.status ?? "saved") === status) return;
+    // this job is still saving its last click, so ignore this one
+    if (savingIds.includes(l.id)) return;
+    // turn this job's status buttons off while we save
+    setSavingIds((ids) => [...ids, l.id]);
     setError("");
     // the status it had before the click, in case we need to undo it
     const oldStatus = l.status;
@@ -114,6 +122,9 @@ export default function SavedPage() {
         ls && ls.map((x) => (x.id === l.id && x.status === status ? { ...x, status: oldStatus } : x))
       );
       fail(e);
+    } finally {
+      // "finally" runs either way, so the buttons always come back on
+      setSavingIds((ids) => ids.filter((id) => id !== l.id));
     }
   }
 
@@ -185,6 +196,7 @@ export default function SavedPage() {
                       type="button"
                       className={`status-option status-option--${s.value}`}
                       aria-pressed={(l.status ?? "saved") === s.value}
+                      disabled={savingIds.includes(l.id)}
                       onClick={() => changeStatus(l, s.value)}
                     >
                       {s.label}
