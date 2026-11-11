@@ -648,3 +648,9 @@ class JobStatusTests(ApiTestCase):
         self.assertEqual(response.status_code, 400)
         self.bookmark.refresh_from_db()
         self.assertEqual(self.bookmark.status, "saved")
+
+    # TEST: bytes that aren't valid text (not UTF-8) are refused with 400, not a crash
+    # (UnicodeDecodeError is a kind of ValueError, which set_status already catches)
+    def test_invalid_utf8_request_is_refused(self):
+        response = self.client.post(self.status_url, b"\xff\xfe\xfa", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
