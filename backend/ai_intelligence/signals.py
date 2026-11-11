@@ -10,10 +10,11 @@ from .models import CredibilityScore
 import os
 import re
 from dotenv import load_dotenv
-load_dotenv()
 
 # For AI functionality
 from openai import OpenAI, OpenAIError
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 def parse_credibility_response(answer):
 
     if answer is None:
-        raise TypeError(f"AI returned None message")
+        raise TypeError("AI returned None message")
 
     # Ensure AI output in desired format
     match = re.fullmatch(

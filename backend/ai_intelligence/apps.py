@@ -8,4 +8,4 @@ class AiIntelligenceConfig(AppConfig):
     # Import signals
     # From django docs: "Subclasses can override this method to perform initialization tasks such as registering signals."
     def ready(self):
-        from . import signals
+        from . import signals  # noqa: F401 (importing it turns the signals on)

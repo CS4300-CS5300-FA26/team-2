@@ -44,7 +44,7 @@ def _listing(listing, saved):
 def feed(request):
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
     listings = Listing.objects.select_related("score").order_by("-created_at")
-    return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
+    return JsonResponse({"listings": [_listing(listing, listing.id in saved_ids) for listing in listings]})
 
 
 @api_login_required
