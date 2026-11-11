@@ -35,6 +35,10 @@ def step_import_has_run(context):
 
 
 # WHEN: a logged-in user (who finished sign-up) loads the feed
+# Why this user isn't blocked (403):
+#   - the feed needs a complete profile: first name, last name, and email (set below)
+#   - ProfileStepMiddleware only blocks users who still have an unused email code
+#     (an EmailVerification row), and a user made here never gets one
 @when("I open the job feed")
 def step_open_feed(context):
     user = User.objects.create_user(
@@ -49,6 +53,9 @@ def step_open_feed(context):
 
 
 # THEN: the imported job is in the feed with its company, location, and apply link
+# This checks the feed API (the data the React feed page shows), like the
+# project's other Behave scenarios. The React part (JobDetails) has no
+# frontend test yet, because the project doesn't have a frontend test tool.
 @then("I see the real listings with their company, location, and apply link")
 def step_see_real_listing(context):
     context.test.assertEqual(context.response.status_code, 200)
