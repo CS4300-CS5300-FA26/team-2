@@ -438,6 +438,61 @@ class ImportJobsTests(ApiTestCase):
         self.assertIn("per_page=1&", second_request.full_url)
 
 
+#Sprint 3: tests for strange replies from JobDataLake.
+# The import should stop with a clear message, or skip the broken jobs,
+# instead of crashing halfway through.
+@override_settings(JOBDATALAKE_API_KEY="test-key")
+class ImportJobsBadReplyTests(ApiTestCase):
+
+    # TEST A: a reply that isn't JSON at all (like an error web page)
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_that_is_not_json_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b"<html>Something went wrong</html>")
+        count_before = Listing.objects.count()
+
+        with self.assertRaisesMessage(CommandError, "couldn't read"):
+            call_command("import_jobs")
+        self.assertEqual(Listing.objects.count(), count_before)  # nothing saved
+
+    # TEST B: JSON, but a list instead of {"jobs": [...]}
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_in_wrong_shape_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'["not", "what", "we", "expected"]')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
+    # TEST C: "jobs" is there, but it isn't a list
+    @patch("listings.jobdatalake.urlopen")
+    def test_jobs_that_are_not_a_list_give_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'{"jobs": "oops"}')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
+    # TEST D: broken jobs are skipped, and the good parts of a job are still saved
+    @patch("listings.jobdatalake.urlopen")
+    def test_broken_jobs_are_skipped(self, mock_urlopen):
+        # a job with some odd values: a number for the title,
+        # and a number and a blank mixed into the locations
+        odd_job = FAKE_JOB.copy()
+        odd_job["job_handle"] = "odd-job"
+        odd_job["title"] = 42
+        odd_job["locations"] = ["Denver, CO", 5, None]
+        # a job whose locations is plain text instead of a list
+        no_list_job = {"job_handle": "no-list-job", "locations": "Denver, CO"}
+        # "oops" and None aren't jobs at all, and 123 isn't a real ID
+        mock_urlopen.return_value = fake_reply(["oops", None, {"job_handle": 123}, odd_job, no_list_job])
+
+        call_command("import_jobs")
+
+        saved = Listing.objects.get(external_id="odd-job")
+        self.assertEqual(saved.title, "Untitled job")  # the number was ignored
+        self.assertEqual(saved.location, "Denver, CO")  # only real text was kept
+        # locations that aren't a list are left empty instead of crashing
+        self.assertEqual(Listing.objects.get(external_id="no-list-job").location, "")
+
+
 #Sprint 3: tests for importing tech jobs
 @override_settings(JOBDATALAKE_API_KEY="test-key")
 class ImportJobsFunctionTests(ApiTestCase):
