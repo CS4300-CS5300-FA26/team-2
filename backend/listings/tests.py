@@ -470,6 +470,14 @@ class ImportJobsBadReplyTests(ApiTestCase):
         with self.assertRaisesMessage(CommandError, "unexpected format"):
             call_command("import_jobs")
 
+    # TEST E: a reply with no "jobs" at all is an error, not an empty import
+    @patch("listings.jobdatalake.urlopen")
+    def test_reply_without_jobs_gives_clear_error(self, mock_urlopen):
+        mock_urlopen.return_value = BytesIO(b'{"found": 0}')
+
+        with self.assertRaisesMessage(CommandError, "unexpected format"):
+            call_command("import_jobs")
+
     # TEST D: broken jobs are skipped, and the good parts of a job are still saved
     @patch("listings.jobdatalake.urlopen")
     def test_broken_jobs_are_skipped(self, mock_urlopen):
