@@ -58,6 +58,9 @@ export default function SavedPage() {
     // "stale" becomes true and we ignore this older reply. That way a slow,
     // old reply can't replace the list for the filter that's picked now.
     let stale = false;
+    // Sprint 3: clear the old list first, so the page shows "Loading saved jobs…"
+    // instead of the last filter's jobs while the new ones load
+    setListings(null);
     const url = filter ? `/api/listings/saved/?status=${filter}` : "/api/listings/saved/";
     apiGet<{ listings: Listing[] }>(url)
       .then((d) => {
