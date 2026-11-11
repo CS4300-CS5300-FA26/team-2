@@ -44,7 +44,7 @@ else:
         "(see README: Deployment settings)."
     )
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https") # Trust the HTTPS header sent by our Railway Nginx gateway
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # Trust the HTTPS header sent by our Railway Nginx gateway
 
 # Media uploads (resumes) go to the real Azure Storage Account in prod,
 # not the local filesystem. Auth is via the backend Web App's

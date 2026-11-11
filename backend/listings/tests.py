@@ -267,13 +267,14 @@ class ProfileGateTests(TestCase):
             self.assertEqual(response.status_code, 403)
             self.assertEqual(response.json()["detail"], "Complete your profile first.")
 
-#Sprint 3
+# Sprint 3
 # Tests for importing real jobs from the JobDataLake API.
 #
 # IMPORTANT: these tests never call the real API.
 # "patch" swaps the real urlopen (the thing that calls the website) for a fake,
 # and we tell the fake what to reply. So the tests are fast, work offline,
 # and never spend our credits.
+
 
 # (these imports are down here so this whole block can be pasted at the end of the file)
 import json  # to build a fake JSON reply
@@ -439,7 +440,7 @@ class ImportJobsTests(ApiTestCase):
         self.assertIn("per_page=1&", second_request.full_url)
 
 
-#Sprint 3: tests for strange replies from JobDataLake.
+# Sprint 3: tests for strange replies from JobDataLake.
 # The import should stop with a clear message, or skip the broken jobs,
 # instead of crashing halfway through.
 @override_settings(JOBDATALAKE_API_KEY="test-key")
@@ -521,7 +522,7 @@ class ImportJobsBadReplyTests(ApiTestCase):
         self.assertEqual(Listing.objects.get(external_id="no-list-job").location, "")
 
 
-#Sprint 3: tests for importing tech jobs
+# Sprint 3: tests for importing tech jobs
 @override_settings(JOBDATALAKE_API_KEY="test-key")
 class ImportJobsFunctionTests(ApiTestCase):
 
