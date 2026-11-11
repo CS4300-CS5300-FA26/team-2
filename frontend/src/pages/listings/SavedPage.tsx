@@ -95,7 +95,8 @@ export default function SavedPage() {
     // clicking the status it already has does nothing
     if ((l.status ?? "saved") === status) return;
     setError("");
-    const before = listings;
+    // the status it had before the click, in case we need to undo it
+    const oldStatus = l.status;
     // show the new status right away
     setListings((ls) => ls && ls.map((x) => (x.id === l.id ? { ...x, status } : x)));
     try {
@@ -105,7 +106,13 @@ export default function SavedPage() {
         setListings((ls) => ls && ls.filter((x) => x.id !== l.id));
       }
     } catch (e) {
-      setListings(before); // it didn't save, so put the old status back
+      // It didn't save, so put the old status back on THIS job only.
+      // Other jobs may have changed since the click, so we leave them alone.
+      // And if this job was changed again since then (x.status !== status),
+      // that newer status wins, so we leave it alone too.
+      setListings((ls) =>
+        ls && ls.map((x) => (x.id === l.id && x.status === status ? { ...x, status: oldStatus } : x))
+      );
       fail(e);
     }
   }
