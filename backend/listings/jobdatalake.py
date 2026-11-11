@@ -78,6 +78,9 @@ def search_jobs(api_key, query, limit, country, job_function=""):
     except URLError as error:
         # we couldn't reach the website at all (no internet, site down, etc.)
         raise JobDataLakeError(f"Could not reach JobDataLake: {error.reason}")
+    except TimeoutError:
+        # Sprint 3: no answer within 30 seconds
+        raise JobDataLakeError("JobDataLake took too long to answer. Try again later.")
     except ValueError:
         # Sprint 3: the reply wasn't JSON at all (for example, an error web page)
         raise JobDataLakeError("JobDataLake sent back something we couldn't read.")
@@ -133,8 +136,8 @@ def save_jobs(jobs):
         # ([:200] cuts it to fit our database field)
         handle = as_text(job.get("job_handle"))[:200]
 
-        # skip it if it has no ID, or if we already imported it before
-        if not handle or Listing.objects.filter(external_id=handle).exists():
+        # skip it if it has no ID
+        if not handle:
             skipped = skipped + 1
             continue
 
@@ -150,14 +153,24 @@ def save_jobs(jobs):
         # make the new Listing.
         # "or ..." gives a fallback if the API left something blank,
         # and [:200] cuts text to fit our database fields.
-        Listing.objects.create(
+        # Sprint 3: get_or_create looks for a Listing with this ID and only makes
+        # a new one if there isn't one yet. Unlike "check, then create", it still
+        # works if two imports run at the same time (it never makes a duplicate).
+        # "defaults" are only used when it makes a new Listing.
+        # It gives back the Listing and True if it was new (False if it was already saved).
+        listing, created = Listing.objects.get_or_create(
             external_id=handle,
-            title=(as_text(job.get("title")) or "Untitled job")[:200],
-            company=(as_text(job.get("company_name")) or "Unknown company")[:200],
-            location=location_text[:300],
-            remote_type=as_text(job.get("remote_type"))[:20],
-            apply_url=safe_link(job.get("url")),
+            defaults={
+                "title": (as_text(job.get("title")) or "Untitled job")[:200],
+                "company": (as_text(job.get("company_name")) or "Unknown company")[:200],
+                "location": location_text[:300],
+                "remote_type": as_text(job.get("remote_type"))[:20],
+                "apply_url": safe_link(job.get("url")),
+            },
         )
-        added = added + 1
+        if created:
+            added = added + 1
+        else:
+            skipped = skipped + 1  # we already had it
 
     return added, skipped

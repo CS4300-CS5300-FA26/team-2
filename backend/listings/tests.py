@@ -4,6 +4,7 @@ from django.test import TestCase
 from ai_intelligence.models import CredibilityScore
 
 from .models import Bookmark, Listing, Note
+from .jobdatalake import save_jobs, search_jobs  # Sprint 3: for the import tests
 
 User = get_user_model()
 
@@ -477,6 +478,25 @@ class ImportJobsBadReplyTests(ApiTestCase):
 
         with self.assertRaisesMessage(CommandError, "unexpected format"):
             call_command("import_jobs")
+
+    # TEST F: JobDataLake takes too long to answer
+    @patch("listings.jobdatalake.urlopen")
+    def test_timeout_gives_clear_error(self, mock_urlopen):
+        # side_effect makes the fake RAISE this error instead of replying
+        mock_urlopen.side_effect = TimeoutError("timed out")
+
+        with self.assertRaisesMessage(CommandError, "took too long"):
+            call_command("import_jobs")
+
+    # TEST G: the same job twice is saved once, and the second copy counts as skipped
+    @patch("listings.jobdatalake.urlopen")
+    def test_same_job_twice_is_saved_once(self, mock_urlopen):
+        mock_urlopen.return_value = fake_reply([FAKE_JOB, FAKE_JOB])
+
+        added, skipped = save_jobs(search_jobs("test-key", "*", 20, "US"))
+
+        self.assertEqual((added, skipped), (1, 1))
+        self.assertEqual(Listing.objects.filter(external_id=FAKE_JOB["job_handle"]).count(), 1)
 
     # TEST D: broken jobs are skipped, and the good parts of a job are still saved
     @patch("listings.jobdatalake.urlopen")
