@@ -61,6 +61,7 @@ export default function SavedPage() {
     // Sprint 3: clear the old list first, so the page shows "Loading saved jobs…"
     // instead of the last filter's jobs while the new ones load
     setListings(null);
+    setError(""); // Sprint 3: clear an old error when a new filter loads
     const url = filter ? `/api/listings/saved/?status=${filter}` : "/api/listings/saved/";
     apiGet<{ listings: Listing[] }>(url)
       .then((d) => {
