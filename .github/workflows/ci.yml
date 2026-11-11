@@ -79,6 +79,19 @@ jobs:
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run
 
+      #Sprint 3: Python linting with Flake8 (settings are in backend/.flake8)
+      - name: Lint Python code with Flake8
+        run: flake8 --count --statistics --tee --output-file=flake8-report.txt
+
+      # save the lint report so anyone can download it from the run's Summary page
+      # ("if: always()" saves it even when Flake8 finds problems)
+      - name: Save Flake8 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake8-report
+          path: backend/flake8-report.txt
+
       #Added coverage and Behave
       - name: Run Django tests with coverage
         run: coverage run manage.py test
