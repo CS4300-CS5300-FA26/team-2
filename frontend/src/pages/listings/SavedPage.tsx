@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../../api/client";
 import { ConfirmDialog, Listing, Note, errorText, useAuthRedirect, JobDetails, STATUSES, formatDate } from "./shared";
@@ -40,6 +40,10 @@ export default function SavedPage() {
   const [confirming, setConfirming] = useState<Listing | null>(null);
   // Sprint 3 (US4.6): which status the "Show" filter is set to ("" = all)
   const [filter, setFilter] = useState("");
+  // Sprint 3: a "ref" always holds the filter that's picked RIGHT NOW.
+  // A save that started before the filter changed still sees the new one.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
   // Sprint 3: IDs of the jobs whose new status is still being saved.
   // Their status buttons are turned off until the save finishes, so quick
   // clicks can't reach the server out of order.
@@ -110,7 +114,8 @@ export default function SavedPage() {
     try {
       await apiPost(`/api/listings/${l.id}/status/`, { status });
       // if a filter is on and this job no longer matches it, take it off the list
-      if (filter && status !== filter) {
+      // (filterRef.current is the filter picked now, which may have changed during the save)
+      if (filterRef.current && status !== filterRef.current) {
         setListings((ls) => ls && ls.filter((x) => x.id !== l.id));
       }
     } catch (e) {
