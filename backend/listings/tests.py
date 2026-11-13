@@ -1,5 +1,12 @@
+import json  # to build a fake JSON reply
+from io import BytesIO  # makes text act like a reply from a website
+from unittest.mock import patch  # swaps real code for a fake during a test
+from urllib.error import HTTPError, URLError  # the errors urlopen can raise
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.management import call_command  # runs "python manage.py ..." inside a test
+from django.core.management.base import CommandError
+from django.test import TestCase, override_settings  # override_settings = pretend a setting has a different value
 
 from ai_intelligence.models import CredibilityScore
 
@@ -24,7 +31,7 @@ class ApiTestCase(TestCase):
         self.add_url = f"/api/listings/{self.listing.id}/notes/"
 
     def titles(self, url):
-        return [l["title"] for l in self.client.get(url).json()["listings"]]
+        return [job["title"] for job in self.client.get(url).json()["listings"]]
 
     def add_note(self, text, url=None):
         return self.client.post(url or self.add_url, {"note": text}, content_type="application/json")
@@ -267,23 +274,13 @@ class ProfileGateTests(TestCase):
             self.assertEqual(response.status_code, 403)
             self.assertEqual(response.json()["detail"], "Complete your profile first.")
 
-#Sprint 3
+# Sprint 3
 # Tests for importing real jobs from the JobDataLake API.
 #
 # IMPORTANT: these tests never call the real API.
 # "patch" swaps the real urlopen (the thing that calls the website) for a fake,
 # and we tell the fake what to reply. So the tests are fast, work offline,
 # and never spend our credits.
-
-# (these imports are down here so this whole block can be pasted at the end of the file)
-import json  # to build a fake JSON reply
-from io import BytesIO  # makes text act like a reply from a website
-from unittest.mock import patch  # swaps real code for a fake during a test
-from urllib.error import HTTPError, URLError  # the errors urlopen can raise
-
-from django.core.management import call_command  # runs "python manage.py ..." inside a test
-from django.core.management.base import CommandError
-from django.test import override_settings  # pretend a setting has a different value
 
 
 # One fake job, shaped exactly like a job in the API's real reply
@@ -439,7 +436,7 @@ class ImportJobsTests(ApiTestCase):
         self.assertIn("per_page=1&", second_request.full_url)
 
 
-#Sprint 3: tests for strange replies from JobDataLake.
+# Sprint 3: tests for strange replies from JobDataLake.
 # The import should stop with a clear message, or skip the broken jobs,
 # instead of crashing halfway through.
 @override_settings(JOBDATALAKE_API_KEY="test-key")
@@ -521,7 +518,7 @@ class ImportJobsBadReplyTests(ApiTestCase):
         self.assertEqual(Listing.objects.get(external_id="no-list-job").location, "")
 
 
-#Sprint 3: tests for importing tech jobs
+# Sprint 3: tests for importing tech jobs
 @override_settings(JOBDATALAKE_API_KEY="test-key")
 class ImportJobsFunctionTests(ApiTestCase):
 
@@ -556,10 +553,12 @@ class ImportJobsFunctionTests(ApiTestCase):
 
         request = mock_urlopen.call_args[0][0]
         self.assertNotIn("job_function=", request.full_url)
-#Sprint 3
+# Sprint 3
 # US4.5: set a status on a saved job (saved, applied, interviewing, offer, rejected)
 # US4.6: filter my Saved Jobs page by status
 # Also: each note shows the date and time it was written
+
+
 class JobStatusTests(ApiTestCase):
 
     def setUp(self):

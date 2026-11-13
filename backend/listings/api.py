@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Bookmark, Listing, Note
 
-#Sprint 3
+# Sprint 3
 # the status names a saved job can have: saved, applied, interviewing, offer, rejected
 STATUSES = [value for value, label in Bookmark.STATUS_CHOICES]
 
@@ -55,7 +55,7 @@ def _listing(listing, saved):
 def feed(request):
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
     listings = Listing.objects.select_related("score").order_by("-created_at")
-    return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
+    return JsonResponse({"listings": [_listing(listing, listing.id in saved_ids) for listing in listings]})
 
 
 @api_login_required
@@ -84,7 +84,7 @@ def saved_jobs(request):
         .order_by("-created_at")
     )
 
-    #Sprint 3
+    # Sprint 3
     # US4.6: /api/listings/saved/?status=applied shows only "applied" jobs.
     # No ?status= means show every saved job.
     status = request.GET.get("status", "")
@@ -128,7 +128,7 @@ def delete_note(request, note_id):
     return JsonResponse({"id": note_id, "deleted": True})
 
 
-#Sprint 3
+# Sprint 3
 # US4.5: set the status of one of my saved jobs.
 # The page sends {"status": "applied"} to /api/listings/<id>/status/
 @api_login_required

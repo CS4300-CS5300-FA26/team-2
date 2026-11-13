@@ -10,26 +10,27 @@ from .models import CredibilityScore
 import os
 import re
 from dotenv import load_dotenv
-load_dotenv()
 
 # For AI functionality
 from openai import OpenAI, OpenAIError
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 def parse_credibility_response(answer):
-    
+
     if answer is None:
-        raise TypeError(f"AI returned None message")
-    
+        raise TypeError("AI returned None message")
+
     # Ensure AI output in desired format
     match = re.fullmatch(
         r"\s*Reasons:\s*(.*?)\s*;\s*Final Score:\s*(\d{1,3})\s*",
         answer,
         flags=re.IGNORECASE,
     )
-    
+
     # Error if AI outputs outside of desired format
     if match is None:
         raise ValueError(f"Invalid credibility response format: {answer!r}")
@@ -37,7 +38,7 @@ def parse_credibility_response(answer):
     # Splice the AI output
     reasoning = match.group(1).strip()
     score = int(match.group(2))
-    
+
     # Error if AI outputs incorrectly
     if not reasoning:
         raise ValueError("Credibility reasoning must not be empty")
@@ -48,19 +49,22 @@ def parse_credibility_response(answer):
 
     return reasoning, score
 
+
 '''
 https://docs.djangoproject.com/en/6.1/ref/signals/
 signals are apparently how you can create an instance of a paired model when the original model is created
 '''
+
+
 @receiver(post_save, sender=Listing)
 def create_credscore(sender, instance, created, raw=False, **kwargs):
     '''
     create_credscore - Runs upon instance of listing being created to create a credibility score attached to it.
     Calls AI from key to read the listing object, generate a score, and put it's reasoning in the reasoning attribute
     '''
-    
+
     # TODO: delegate this to a background task, perhaps with Celery or something
-    
+
     if not created or raw:
         return
 
@@ -72,7 +76,7 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
         response = client.chat.completions.create(
             model="gpt-6-luna",
             messages=[{"role": "user", "content":
-                f"""You will give this job listing a score from 1-100 for our website.
+                       f"""You will give this job listing a score from 1-100 for our website.
                 Base the score off of how credible the job listing seems.
                 Give a few main 1-5 word reasons within 256 characters.
                 Keep in mind that for the listing Django model, the only attributes are the job title, company name, and listing creation time.
@@ -82,7 +86,7 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
                 This is the job listing -> Title: {instance.title}; Company: {instance.company};
                 When created: {instance.created_at}"""}]
         )
-        
+
         answer = response.choices[0].message.content
         try:
             reasoning, score = parse_credibility_response(answer)
@@ -100,12 +104,12 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
                 score=score,
                 reasoning=reasoning,
             )
-    
+
     except (OpenAIError, KeyError):
         CredibilityScore.objects.create(
             listing=instance,
-            score = None,
-            reasoning = None,
+            score=None,
+            reasoning=None,
         )
-    
+
     return
