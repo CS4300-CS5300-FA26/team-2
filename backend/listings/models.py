@@ -34,6 +34,19 @@ class Bookmark(models.Model):
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE)
     #when they saved it
     created_at = models.DateTimeField(auto_now_add=True)
+
+    #Sprint 3
+    # US4.5: where I am with this application.
+    # Each pair is (what's stored in the database, what people see).
+    STATUS_CHOICES = [
+        ("saved", "Saved"),
+        ("applied", "Applied"),
+        ("interviewing", "Interviewing"),
+        ("offer", "Offer"),
+        ("rejected", "Rejected"),
+    ]
+    # every saved job starts as "saved"
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="saved")
     
 
     class Meta:
