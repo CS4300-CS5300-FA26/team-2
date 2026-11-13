@@ -23,7 +23,7 @@ sqlparse==0.6.0
 truststore==0.10.5
 typing-inspection==0.4.4
 typing_extensions==4.16.0
-tzdata==2026.5
+tzdata==2026.6
 psycopg[binary]==3.2.4
 whitenoise==6.12.0
 behave-django==1.9.0
