@@ -90,4 +90,8 @@ def step_confirm_deletion(context):
     # Confirm the database record no longer exists
     context.test.assertFalse(
         Resume.objects.filter(id=context.resume_id).exists()
+<<<<<<< HEAD
     )
+=======
+    )
+>>>>>>> main

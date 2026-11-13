@@ -52,6 +52,7 @@ def step_request_feedback(context):
             feedback_url
         )
 
+
 @then("I receive suggestions about what could be improved")
 def step_receive_feedback(context):
     # A 200 response means the page loaded successfully
@@ -61,4 +62,8 @@ def step_receive_feedback(context):
     context.test.assertIn(
         "Add measurable results to your experience",
         context.response.json()["feedback"],
+<<<<<<< HEAD
     )
+=======
+    )
+>>>>>>> main

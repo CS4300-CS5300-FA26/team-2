@@ -1,4 +1,4 @@
-#Sprint 3
+# Sprint 3
 # A command that imports real jobs from JobDataLake into our feed.
 #
 # Run it like this (from the backend folder):
