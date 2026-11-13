@@ -1,4 +1,4 @@
-#Sprint 3
+# Sprint 3
 # Steps for US4.5 (set a status) and US4.6 (filter by status).
 # "Given I am viewing a saved job" is reused from private_note_steps.py,
 # so it isn't written again here (Behave shares steps across files).
