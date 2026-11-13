@@ -28,20 +28,6 @@ updates:
       npm-packages:
         patterns: ["*"]
         update-types: ["minor", "patch"]
-    # Major upgrades of these broke our build (Vite 5 -> 8, React 18 -> 19), so we skip
-    # them for now. NOTE: this can also block security PRs that need one of these
-    # major upgrades, so check Security -> Dependabot alerts each sprint.
-    ignore:
-      - dependency-name: "vite"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@types/react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@types/react-dom"
-        update-types: ["version-update:semver-major"]
 
   # the GitHub Actions our workflows use (.github/workflows)
   - package-ecosystem: "github-actions"
