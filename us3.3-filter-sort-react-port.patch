@@ -1,0 +1,365 @@
+diff --git a/backend/ai_intelligence/tests.py b/backend/ai_intelligence/tests.py
+index 8e46ea2..9f36bb9 100644
+--- a/backend/ai_intelligence/tests.py
++++ b/backend/ai_intelligence/tests.py
+@@ -1,4 +1,8 @@
++from datetime import timedelta
++
++from django.contrib.auth import get_user_model
+ from django.test import TestCase    # Obviously needed
++from django.utils import timezone
+ 
+ # Local Models and functions
+ from .models import CredibilityScore
+@@ -15,6 +19,97 @@ from openai import OpenAIError
+ from unittest.mock import patch
+ import os
+ 
++class FilterSortingTests(TestCase):
++
++    def setUp(self):
++        openai_patcher = patch("ai_intelligence.signals.OpenAI")
++        self.mock_openai = openai_patcher.start()
++        self.addCleanup(openai_patcher.stop)
++        self.mock_openai.return_value.chat.completions.create.return_value.choices[0].message.content = (
++            "Reasons: Test score; Final Score: 82"
++        )
++
++        # the listings API also requires a complete profile (first name, last name, email)
++        user = get_user_model().objects.create_user(
++            username="filter-test-user", password="test-pass",
++            first_name="Filter", last_name="Tester", email="filter@example.com",
++        )
++        self.client.force_login(user)
++
++        base_time = timezone.now()
++        self.listings = []
++        for index, score in enumerate((40, 60, 80, 90)):
++            listing = Listing.objects.create(
++                title=f"Score {score}",
++                company="Test company",
++            )
++            CredibilityScore.objects.filter(listing=listing).update(score=score)
++            Listing.objects.filter(pk=listing.pk).update(
++                created_at=base_time + timedelta(days=index)
++            )
++            self.listings.append(listing)
++
++        self.unscored_listing = Listing.objects.create(
++            title="Unscored listing",
++            company="Test company",
++        )
++        CredibilityScore.objects.filter(listing=self.unscored_listing).update(score=None)
++
++    def apply_filters(self, sort_by, min_score="40", max_score="80"):
++        # US3.3 now lives on the JSON feed: GET /api/listings/feed/?sort_by=&min_score=&max_score=
++        return self.client.get("/api/listings/feed/", {
++            "sort_by": sort_by,
++            "min_score": min_score,
++            "max_score": max_score,
++        })
++
++    def titles(self, response):
++        return [l["title"] for l in response.json()["listings"]]
++
++    def test_score_range_includes_endpoints_and_excludes_out_of_range(self):
++        response = self.apply_filters("date-asc")
++
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(self.titles(response), ["Score 40", "Score 60", "Score 80"])
++
++    def test_sort_choices_order_filtered_listings(self):
++        expected_titles = {
++            "date-desc": ["Score 80", "Score 60", "Score 40"],
++            "date-asc": ["Score 40", "Score 60", "Score 80"],
++            "score-desc": ["Score 80", "Score 60", "Score 40"],
++            "score-asc": ["Score 40", "Score 60", "Score 80"],
++        }
++
++        for sort_by, titles in expected_titles.items():
++            with self.subTest(sort_by=sort_by):
++                response = self.apply_filters(sort_by)
++
++                self.assertEqual(response.status_code, 200)
++                self.assertEqual(self.titles(response), titles)
++
++    def test_feed_without_query_string_is_unchanged(self):
++        # no query string -> nothing is filtered out, so the unscored listing is still shown
++        response = self.client.get("/api/listings/feed/")
++
++        self.assertEqual(response.status_code, 200)
++        self.assertCountEqual(
++            self.titles(response),
++            ["Score 40", "Score 60", "Score 80", "Score 90", "Unscored listing"],
++        )
++
++    def test_invalid_filter_input_is_rejected(self):
++        bad_requests = [
++            {"sort_by": "bogus"},
++            {"sort_by": "date-asc", "min_score": "abc", "max_score": "80"},
++            {"sort_by": "date-asc", "min_score": "70", "max_score": "30"},   # min > max
++            {"sort_by": "date-asc", "min_score": "-5", "max_score": "80"},
++            {"sort_by": "date-asc", "min_score": "0", "max_score": "101"},
++        ]
++        for params in bad_requests:
++            with self.subTest(params=params):
++                self.assertEqual(self.client.get("/api/listings/feed/", params).status_code, 400)
++
++
+ class AiTests(TestCase):
+     
+     def setUp(self):
+diff --git a/backend/listings/api.py b/backend/listings/api.py
+index fb1a03a..df3c4c3 100644
+--- a/backend/listings/api.py
++++ b/backend/listings/api.py
+@@ -39,11 +39,39 @@ def _listing(listing, saved):
+     }
+ 
+ 
++# US3.3: ?sort_by=... choices -> the model field to order by
++SORT_FIELDS = {
++    "date-desc": "-created_at",
++    "date-asc": "created_at",
++    "score-desc": "-score__score",
++    "score-asc": "score__score",
++}
++
++
+ @api_login_required
+ @require_http_methods(["GET"])
+ def feed(request):
++    # US3.3: optional ?sort_by=date-desc|date-asc|score-desc|score-asc
++    #        and ?min_score=0..100&max_score=0..100 (both ends included).
++    # With no query string the feed is unchanged (newest first, unscored included).
++    sort_by = request.GET.get("sort_by", "date-desc")
++    if sort_by not in SORT_FIELDS:
++        return JsonResponse({"detail": "Invalid sort_by."}, status=400)
++
++    listings = Listing.objects.select_related("score")
++
++    if "min_score" in request.GET or "max_score" in request.GET:
++        try:
++            min_score = int(request.GET.get("min_score", 0))
++            max_score = int(request.GET.get("max_score", 100))
++        except ValueError:
++            return JsonResponse({"detail": "Scores must be whole numbers."}, status=400)
++        if not (0 <= min_score <= max_score <= 100):
++            return JsonResponse({"detail": "Score range must satisfy 0 <= min <= max <= 100."}, status=400)
++        listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
++
++    listings = listings.order_by(SORT_FIELDS[sort_by])
+     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
+-    listings = Listing.objects.select_related("score").order_by("-created_at")
+     return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
+ 
+ 
+diff --git a/frontend/src/pages/listings/FeedPage.tsx b/frontend/src/pages/listings/FeedPage.tsx
+index 66c0206..2442bad 100644
+--- a/frontend/src/pages/listings/FeedPage.tsx
++++ b/frontend/src/pages/listings/FeedPage.tsx
+@@ -2,19 +2,30 @@ import { useEffect, useState } from "react";
+ import { Link } from "react-router-dom";
+ import { apiGet, apiPost } from "../../api/client";
+ import { CredScore, Listing, errorText, useAuthRedirect, JobDetails } from "./shared";
++import FilterMenu, { FeedFilters } from "./FilterMenu";
+ import "./listings.css";
+ 
+ export default function FeedPage() {
+   const [listings, setListings] = useState<Listing[] | null>(null);
+   const [error, setError] = useState("");
++  // US3.3: null = plain feed (no query string); set once the user presses Apply
++  const [filters, setFilters] = useState<FeedFilters | null>(null);
+   const authRedirect = useAuthRedirect();
+ 
+   useEffect(() => {
+-    apiGet<{ listings: Listing[] }>("/api/listings/feed/")
++    const query = filters
++      ? "?" + new URLSearchParams({
++          sort_by: filters.sortBy,
++          min_score: String(filters.minScore),
++          max_score: String(filters.maxScore),
++        }).toString()
++      : "";
++    setError("");
++    apiGet<{ listings: Listing[] }>(`/api/listings/feed/${query}`)
+       .then((d) => setListings(d.listings))
+       .catch((e) => { if (!authRedirect(e)) setError(errorText(e)); });
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, []);
++  }, [filters]);
+ 
+   const setSaved = (id: number, saved: boolean) =>
+     setListings((ls) => ls && ls.map((l) => (l.id === id ? { ...l, saved } : l)));
+@@ -38,9 +49,10 @@ export default function FeedPage() {
+         <h1>Job Feed</h1>
+         <Link to="/saved">Saved Jobs</Link>
+       </header>
++      <FilterMenu active={filters !== null} onApply={setFilters} onReset={() => setFilters(null)} />
+       {error && <p role="alert" className="listings-error">{error}</p>}
+       {listings === null && !error && <p role="status">Loading jobs…</p>}
+-      {listings?.length === 0 && <p>No listings yet.</p>}
++      {listings?.length === 0 && <p>{filters ? "No listings match these filters." : "No listings yet."}</p>}
+       <ul className="listings-list">
+         {listings?.map((l) => (
+           <li key={l.id} className="card listing">
+diff --git a/frontend/src/pages/listings/FilterMenu.tsx b/frontend/src/pages/listings/FilterMenu.tsx
+new file mode 100644
+index 0000000..6783c66
+--- /dev/null
++++ b/frontend/src/pages/listings/FilterMenu.tsx
+@@ -0,0 +1,113 @@
++import { useRef, useState } from "react";
++
++// US3.3: sort + score-range filter dropdown for the job feed.
++// Ported from the old Django template (feed.html); the choices match the
++// ?sort_by / ?min_score / ?max_score query params of GET /api/listings/feed/.
++export type SortBy = "date-desc" | "date-asc" | "score-desc" | "score-asc";
++export type FeedFilters = { sortBy: SortBy; minScore: number; maxScore: number };
++
++export const DEFAULT_FILTERS: FeedFilters = { sortBy: "date-desc", minScore: 0, maxScore: 100 };
++
++const SORT_OPTIONS: [SortBy, string][] = [
++  ["date-desc", "Date posted (desc)"],
++  ["date-asc", "Date posted (asc)"],
++  ["score-desc", "Score (desc)"],
++  ["score-asc", "Score (asc)"],
++];
++
++type Props = {
++  onApply: (filters: FeedFilters) => void;
++  onReset: () => void;
++  active: boolean; // true while filters are applied, to show the Reset button
++};
++
++export default function FilterMenu({ onApply, onReset, active }: Props) {
++  const [draft, setDraft] = useState<FeedFilters>(DEFAULT_FILTERS);
++  const detailsRef = useRef<HTMLDetailsElement>(null);
++
++  const close = () => {
++    if (detailsRef.current) detailsRef.current.open = false;
++  };
++
++  return (
++    <div className="filter-menu">
++      <details ref={detailsRef}>
++        <summary className="filter-button" aria-label="Filter and sort listings">
++          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
++            <path d="M14 20.5H10C9.80189 20.4974 9.61263 20.4176 9.47253 20.2775C9.33244 20.1374 9.25259 19.9481 9.25 19.75V12L3.9 4.69C3.81544 4.58007 3.76395 4.44832 3.75155 4.31018C3.73915 4.17204 3.76636 4.03323 3.83 3.91C3.89375 3.78712 3.98984 3.68399 4.10792 3.61173C4.226 3.53947 4.36157 3.50084 4.5 3.5H19.5C19.6384 3.50084 19.774 3.53947 19.8921 3.61173C20.0101 3.68399 20.1062 3.78712 20.17 3.91C20.2336 4.03323 20.2608 4.17204 20.2484 4.31018C20.236 4.44832 20.1846 4.58007 20.1 4.69L14.75 12V19.75C14.7474 19.9481 14.6676 20.1374 14.5275 20.2775C14.3874 20.4176 14.1981 20.4974 14 20.5ZM10.75 19H13.25V11.75C13.2492 11.5907 13.302 11.4357 13.4 11.31L18 5H6L10.62 11.31C10.718 11.4357 10.7708 11.5907 10.77 11.75L10.75 19Z" />
++          </svg>
++        </summary>
++
++        <form
++          className="filter-dropdown"
++          onSubmit={(e) => {
++            e.preventDefault();
++            onApply(draft);
++            close();
++          }}
++        >
++          <fieldset className="filter-section">
++            <legend>Sort listings by:</legend>
++            {SORT_OPTIONS.map(([value, label]) => (
++              <label key={value} className="filter-sort-option">
++                {label}
++                <input
++                  type="radio"
++                  name="sort_by"
++                  value={value}
++                  checked={draft.sortBy === value}
++                  onChange={() => setDraft({ ...draft, sortBy: value })}
++                />
++              </label>
++            ))}
++          </fieldset>
++
++          <div className="filter-section">
++            <span className="filter-legend">Only show listings that have score in range:</span>
++            <div className="filter-sliders">
++              {/* each slider is capped by the other one, so min can never pass max */}
++              <input
++                type="range"
++                aria-label="Minimum score"
++                className="filter-min"
++                min={0}
++                max={100}
++                value={draft.minScore}
++                onChange={(e) => setDraft({ ...draft, minScore: Math.min(Number(e.target.value), draft.maxScore) })}
++              />
++              <input
++                type="range"
++                aria-label="Maximum score"
++                className="filter-max"
++                min={0}
++                max={100}
++                value={draft.maxScore}
++                onChange={(e) => setDraft({ ...draft, maxScore: Math.max(Number(e.target.value), draft.minScore) })}
++              />
++            </div>
++            <div className="filter-range-values">
++              <output>{draft.minScore}</output>
++              <output>{draft.maxScore}</output>
++            </div>
++          </div>
++
++          <div className="filter-actions">
++            <button type="submit">Apply</button>
++            {active && (
++              <button
++                type="button"
++                onClick={() => {
++                  setDraft(DEFAULT_FILTERS);
++                  onReset();
++                  close();
++                }}
++              >
++                Reset
++              </button>
++            )}
++          </div>
++        </form>
++      </details>
++    </div>
++  );
++}
+diff --git a/frontend/src/pages/listings/listings.css b/frontend/src/pages/listings/listings.css
+index 594c5c9..faee960 100644
+--- a/frontend/src/pages/listings/listings.css
++++ b/frontend/src/pages/listings/listings.css
+@@ -46,3 +46,36 @@
+ /* Sprint 3: location and Apply link under the company name */
+ .job-details { font-size: 14px; margin-top: 4px !important; }
+ .job-details a { font-weight: bold; margin-left: 6px; }
++
++/* US3.3: filter + sort dropdown (ported from the old feed.html) */
++.filter-menu { display: flex; justify-content: flex-end; margin: 8px 0; }
++.filter-menu details { position: relative; }
++.filter-menu summary { list-style: none; }
++.filter-menu summary::-webkit-details-marker { display: none; }
++.filter-button { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
++.filter-button:hover { background: rgba(127, 127, 127, 0.18); }
++.filter-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
++
++.filter-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 2; box-sizing: border-box; width: min(700px, calc(100vw - 32px)); padding: 16px; display: flex; align-items: flex-start; gap: 24px; background: #fff; color: #222; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
++.filter-section { flex: 1; min-width: 0; border: none; margin: 0; padding: 0; }
++.filter-section legend, .filter-legend { display: block; padding: 0; margin: 0 0 12px; font-weight: bold; font-size: 14px; }
++.filter-sort-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
++.filter-actions { display: flex; flex-direction: column; gap: 8px; align-self: flex-end; }
++
++/* two range sliders stacked on one track; each slider's thumb stays clickable */
++.filter-sliders { position: relative; height: 24px; }
++.filter-sliders::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #c6c6c6; transform: translateY(-50%); }
++.filter-sliders input[type="range"] { -webkit-appearance: none; appearance: none; position: absolute; top: 50%; left: 0; width: 100%; height: 24px; margin: 0; background: transparent; transform: translateY(-50%); pointer-events: none; }
++.filter-sliders input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: transparent; }
++.filter-sliders input[type="range"]::-moz-range-track { height: 2px; background: transparent; }
++.filter-sliders input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -7px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
++.filter-sliders input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
++.filter-min { z-index: 2; }
++.filter-max { z-index: 1; }
++.filter-range-values { display: flex; justify-content: space-between; color: #555; font-size: 14px; font-variant-numeric: tabular-nums; }
++
++@media (max-width: 560px) {
++  .filter-dropdown { flex-direction: column; gap: 16px; }
++  .filter-section { width: 100%; }
++  .filter-actions { flex-direction: row; align-self: flex-start; }
++}

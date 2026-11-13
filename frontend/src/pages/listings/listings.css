@@ -1,0 +1,81 @@
+/* Listings pages. Uses shell variables when present, with fallbacks. */
+.listings-page { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+.listings-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.listings-list { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 12px; }
+.listings-error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; }
+
+.listing { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; }
+.listing h3 { margin: 0 0 4px; }
+.listing p { margin: 0; opacity: 0.75; }
+.listing-actions { display: flex; align-items: center; gap: 8px; }
+
+.bookmark-button { background: none; border: none; color: inherit; cursor: pointer; padding: 8px; border-radius: 50%; }
+.bookmark-button:hover { background: rgba(127, 127, 127, 0.18); }
+.bookmark-button:focus-visible, .credscore-tooltip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.credscore { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; color: #222; }
+.credscore--red { background: #e57373; }
+.credscore--orange { background: #ffb74d; }
+.credscore--yellow { background: #fff176; }
+.credscore--green { background: #81c784; }
+.credscore--unscored { background: #e0e0e0; color: #555; }
+.credscore-tooltip { position: relative; display: inline-flex; cursor: help; border-radius: 50%; }
+.credscore-reasons { position: absolute; z-index: 1; right: 0; bottom: 100%; width: min(240px, calc(100vw - 48px)); padding: 10px 12px; border-radius: 6px; background: #fff; color: #333; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-size: 14px; font-weight: normal; line-height: 1.4; visibility: hidden; opacity: 0; transition: opacity 150ms ease; }
+.credscore-tooltip:hover .credscore-reasons, .credscore-tooltip:focus .credscore-reasons { visibility: visible; opacity: 1; }
+
+.saved-listing { align-items: flex-start; flex-wrap: wrap; }
+.saved-info { flex: 1 1 240px; min-width: 0; }
+.notes { list-style: none; margin: 8px 0 0; padding: 0; }
+.note { display: flex; align-items: center; gap: 6px; font-style: italic; margin-bottom: 4px; overflow-wrap: anywhere; }
+.delete-note-button { border: none; background: none; color: #b00020; font-size: 18px; line-height: 1; padding: 2px 6px; cursor: pointer; border-radius: 4px; }
+.delete-note-button:hover { background: #fde8eb; }
+.actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.note-form { display: flex; flex-direction: column; gap: 6px; }
+.note-form textarea { width: 240px; max-width: 100%; box-sizing: border-box; padding: 6px; font: inherit; resize: vertical; }
+.listings-danger { color: #b00020; border-color: #e5a0a8; }
+
+.confirm-dialog { border: none; border-radius: 12px; padding: 20px 24px; max-width: min(380px, calc(100vw - 32px)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.confirm-dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+@media (max-width: 600px) {
+  .listing { flex-wrap: wrap; }
+  .actions, .note-form, .note-form textarea { width: 100%; }
+}
+
+/* Sprint 3: location and Apply link under the company name */
+.job-details { font-size: 14px; margin-top: 4px !important; }
+.job-details a { font-weight: bold; margin-left: 6px; }
+
+/* US3.3: filter + sort dropdown (ported from the old feed.html) */
+.filter-menu { display: flex; justify-content: flex-end; margin: 8px 0; }
+.filter-menu details { position: relative; }
+.filter-menu summary { list-style: none; }
+.filter-menu summary::-webkit-details-marker { display: none; }
+.filter-button { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+.filter-button:hover { background: rgb(73, 70, 70); }
+.filter-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.filter-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 2; box-sizing: border-box; width: min(700px, calc(100vw - 32px)); padding: 16px; display: flex; align-items: flex-start; gap: 24px; background: #fff; color: #dddfe8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
+.filter-section { flex: 1; min-width: 0; border: none; margin: 0; padding: 0; }
+.filter-section legend, .filter-legend { display: block; padding: 0; margin: 0 0 12px; font-weight: bold; font-size: 14px; }
+.filter-sort-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.filter-actions { display: flex; flex-direction: column; gap: 8px; align-self: flex-end; }
+
+/* two range sliders stacked on one track; each slider's thumb stays clickable */
+.filter-sliders { position: relative; height: 24px; }
+.filter-sliders::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #c6c6c6; transform: translateY(-50%); }
+.filter-sliders input[type="range"] { -webkit-appearance: none; appearance: none; position: absolute; top: 50%; left: 0; width: 100%; height: 24px; margin: 0; background: transparent !important; transform: translateY(-50%); pointer-events: none; border:none !important; border-radius: 0 !important; padding: 0 !important }
+.filter-sliders input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: transparent; }
+.filter-sliders input[type="range"]::-moz-range-track { height: 2px; background: transparent; }
+.filter-sliders input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -7px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
+.filter-sliders input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
+.filter-min { z-index: 2; }
+.filter-max { z-index: 1; }
+.filter-range-values { display: flex; justify-content: space-between; color: #555; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 560px) {
+  .filter-dropdown { flex-direction: column; gap: 16px; }
+  .filter-section { width: 100%; }
+  .filter-actions { flex-direction: row; align-self: flex-start; }
+}
