@@ -9,6 +9,17 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Bookmark, Listing, Note
 
+# Sprint 3
+# the status names a saved job can have: saved, applied, interviewing, offer, rejected
+STATUSES = [value for value, label in Bookmark.STATUS_CHOICES]
+
+
+# Sprint 3: one note as JSON, including when it was written.
+# isoformat() turns the date into text like "2026-11-09T19:10:00+00:00",
+# which the React page turns into "Nov 9, 2026, 12:10 PM" in your own time zone.
+def _note(note):
+    return {"id": note.id, "text": note.text, "created_at": note.created_at.isoformat()}
+
 
 def api_login_required(view):
     @wraps(view)
@@ -72,10 +83,23 @@ def saved_jobs(request):
         .prefetch_related("notes")
         .order_by("-created_at")
     )
+
+    # Sprint 3
+    # US4.6: /api/listings/saved/?status=applied shows only "applied" jobs.
+    # No ?status= means show every saved job.
+    status = request.GET.get("status", "")
+    if status:
+        if status not in STATUSES:
+            return JsonResponse({"detail": "Unknown status."}, status=400)
+        bookmarks = bookmarks.filter(status=status)
+
     out = []
     for b in bookmarks:
         item = _listing(b.listing, True)
-        item["notes"] = [{"id": n.id, "text": n.text} for n in b.notes.all()]
+        # Sprint 3: each note also sends when it was written
+        item["notes"] = [_note(n) for n in b.notes.all()]
+        # Sprint 3 (US4.5): where I am with this application
+        item["status"] = b.status
         out.append(item)
     return JsonResponse({"listings": out})
 
@@ -92,7 +116,8 @@ def add_note(request, listing_id):
     if not text:
         return JsonResponse({"detail": "Note cannot be empty."}, status=400)
     note = Note.objects.create(bookmark=bookmark, text=text)
-    return JsonResponse({"id": note.id, "text": note.text}, status=201)
+    # Sprint 3: send the date and time too, so the page can show it right away
+    return JsonResponse(_note(note), status=201)
 
 
 @api_login_required
@@ -101,3 +126,27 @@ def delete_note(request, note_id):
     # only notes on MY bookmarks; others 404
     get_object_or_404(Note, id=note_id, bookmark__user=request.user).delete()
     return JsonResponse({"id": note_id, "deleted": True})
+
+
+# Sprint 3
+# US4.5: set the status of one of my saved jobs.
+# The page sends {"status": "applied"} to /api/listings/<id>/status/
+@api_login_required
+@require_http_methods(["POST"])
+def set_status(request, listing_id):
+    # 404 unless it's MY saved job, so nobody can change someone else's
+    bookmark = get_object_or_404(Bookmark, user=request.user, listing_id=listing_id)
+
+    # read the new status from the request (empty if the body is broken)
+    try:
+        status = str(json.loads(request.body or b"{}").get("status", ""))
+    except (ValueError, AttributeError):
+        status = ""
+
+    # only the five allowed statuses can be saved
+    if status not in STATUSES:
+        return JsonResponse({"detail": "Unknown status."}, status=400)
+
+    bookmark.status = status
+    bookmark.save()
+    return JsonResponse({"id": listing_id, "status": bookmark.status})

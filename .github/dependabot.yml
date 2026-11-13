@@ -1,0 +1,26 @@
+# Dependabot (Sprint 3)
+# Once a week, Dependabot checks the packages our project uses.
+# If there's a newer version (or a security fix), it opens a pull request for us.
+# The security report is in the repo's Security tab -> Dependabot.
+version: 2
+updates:
+  # Python packages for the Django backend (backend/requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # npm packages for the React frontend (frontend/package.json)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # the GitHub Actions our workflows use (.github/workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
