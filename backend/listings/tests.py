@@ -556,3 +556,101 @@ class ImportJobsFunctionTests(ApiTestCase):
 
         request = mock_urlopen.call_args[0][0]
         self.assertNotIn("job_function=", request.full_url)
+#Sprint 3
+# US4.5: set a status on a saved job (saved, applied, interviewing, offer, rejected)
+# US4.6: filter my Saved Jobs page by status
+# Also: each note shows the date and time it was written
+class JobStatusTests(ApiTestCase):
+
+    def setUp(self):
+        super().setUp()  # runs ApiTestCase's setUp first (users and one listing)
+        self.client.force_login(self.user)
+        # this user saves the listing, so it's on their Saved Jobs page
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+        self.status_url = f"/api/listings/{self.listing.id}/status/"
+
+    # helper: send a new status for the saved job
+    def set_status(self, status):
+        return self.client.post(self.status_url, {"status": status}, content_type="application/json")
+
+    # TEST 1: a newly saved job starts as "saved"
+    def test_new_saved_job_has_status_saved(self):
+        job = self.client.get(SAVED).json()["listings"][0]
+        self.assertEqual(job["status"], "saved")
+
+    # TEST 2: setting a status saves it and shows it on the Saved Jobs page
+    def test_set_status_saves_and_shows_it(self):
+        response = self.set_status("applied")
+        self.assertEqual(response.status_code, 200)
+
+        self.bookmark.refresh_from_db()  # reload it from the database
+        self.assertEqual(self.bookmark.status, "applied")
+        job = self.client.get(SAVED).json()["listings"][0]
+        self.assertEqual(job["status"], "applied")
+
+    # TEST 3: every one of the five statuses works
+    def test_all_five_statuses_work(self):
+        for status in ["saved", "applied", "interviewing", "offer", "rejected"]:
+            self.assertEqual(self.set_status(status).status_code, 200)
+
+    # TEST 4: a made-up status is refused and nothing changes
+    def test_unknown_status_is_refused(self):
+        response = self.set_status("hired!!")
+        self.assertEqual(response.status_code, 400)
+        self.bookmark.refresh_from_db()
+        self.assertEqual(self.bookmark.status, "saved")
+
+    # TEST 5: you can't set a status on a job you haven't saved
+    def test_cannot_set_status_on_job_not_saved(self):
+        self.client.force_login(self.other_user)  # other_user never saved it
+        self.assertEqual(self.set_status("applied").status_code, 404)
+
+    # TEST 6: logged-out users can't set a status
+    def test_set_status_needs_login(self):
+        self.client.logout()
+        self.assertEqual(self.set_status("applied").status_code, 401)
+
+    # TEST 7: only POST is allowed for setting a status
+    def test_set_status_get_not_allowed(self):
+        self.assertEqual(self.client.get(self.status_url).status_code, 405)
+
+    # TEST 8 (US4.6): filtering shows only jobs with that status
+    def test_filter_shows_only_matching_jobs(self):
+        # a second saved job that we mark as "applied"
+        other_job = Listing.objects.create(title="Data Intern", company="Ball")
+        Bookmark.objects.create(user=self.user, listing=other_job, status="applied")
+
+        self.assertEqual(self.titles(SAVED + "?status=applied"), ["Data Intern"])
+        self.assertEqual(self.titles(SAVED + "?status=saved"), ["Software Intern"])
+
+    # TEST 9 (US4.6): no filter means every saved job is shown
+    def test_no_filter_shows_all_jobs(self):
+        other_job = Listing.objects.create(title="Data Intern", company="Ball")
+        Bookmark.objects.create(user=self.user, listing=other_job, status="applied")
+        self.assertEqual(len(self.titles(SAVED)), 2)
+
+    # TEST 10 (US4.6): a made-up filter is refused
+    def test_unknown_filter_is_refused(self):
+        self.assertEqual(self.client.get(SAVED + "?status=nope").status_code, 400)
+
+    # TEST 11: notes include the date and time they were written
+    def test_notes_include_date_and_time(self):
+        response = self.add_note("Call the recruiter")
+        self.assertIn("created_at", response.json())
+
+        note = self.client.get(SAVED).json()["listings"][0]["notes"][0]
+        self.assertEqual(note["text"], "Call the recruiter")
+        self.assertIn("created_at", note)
+
+    # TEST 12: a broken request (not real JSON) is refused and nothing changes
+    def test_broken_request_is_refused(self):
+        response = self.client.post(self.status_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+        self.bookmark.refresh_from_db()
+        self.assertEqual(self.bookmark.status, "saved")
+
+    # TEST: bytes that aren't valid text (not UTF-8) are refused with 400, not a crash
+    # (UnicodeDecodeError is a kind of ValueError, which set_status already catches)
+    def test_invalid_utf8_request_is_refused(self):
+        response = self.client.post(self.status_url, b"\xff\xfe\xfa", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
