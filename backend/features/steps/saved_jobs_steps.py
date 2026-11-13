@@ -20,7 +20,7 @@ def step_bookmarked_listings(context):
     # Anything we put in it here (like context.user) we can use in later steps.
 
     # make a fake user for the test
-    context.user = User.objects.create_user(username="testuser", password="testpass123")
+    context.user = User.objects.create_user(username="testuser", password="testpass123", first_name="Test", last_name="User", email="testuser@example.com")
 
     # log in as that user (so we don't have to type a password)
     context.test.client.force_login(context.user)
@@ -46,7 +46,7 @@ def step_bookmarked_listings(context):
 def step_navigate_to_saved(context):
     # open the Saved Jobs page, like typing /saved/ in the browser
     # and put the page we get back into the backpack
-    context.response = context.test.client.get("/saved/")
+    context.response = context.test.client.get("/api/listings/saved/")
 
 
 # ------------------------------------------------------------
@@ -59,12 +59,10 @@ def step_see_all_bookmarks(context):
     context.test.assertEqual(context.response.status_code, 200)
 
     # go through each job we saved, one at a time...
+    items = {i["title"]: i["company"] for i in context.response.json()["listings"]}
     for job in context.saved_jobs:
-        # ...and make sure its title is on the page
-        context.test.assertContains(context.response, job.title)
-
-        # ...and its company is on the page too
-        context.test.assertContains(context.response, job.company)
+        # ...and make sure its title and company are in the response
+        context.test.assertEqual(items.get(job.title), job.company)
 
     # if all the checks pass, we know ALL our bookmarked jobs
     # show up together on one page, which is what the story asks for

@@ -15,3 +15,16 @@ class ProfileForm(forms.ModelForm):
         # User allows these to be blank, but the profile step needs all of them
         for field in self.fields.values():
             field.required = True
+
+    # one account per email (case-insensitive)
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        taken = get_user_model().objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
+        if taken.exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+
+# Step 3 of sign-up (US1.3): the code we emailed to the user.
+class VerifyCodeForm(forms.Form):
+    code = forms.CharField(max_length=6)

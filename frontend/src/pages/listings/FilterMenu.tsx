@@ -1,8 +1,5 @@
 import { useRef, useState } from "react";
 
-// US3.3: sort + score-range filter dropdown for the job feed.
-// Ported from the old Django template (feed.html); the choices match the
-// ?sort_by / ?min_score / ?max_score query params of GET /api/listings/feed/.
 export type SortBy = "date-desc" | "date-asc" | "score-desc" | "score-asc";
 export type FeedFilters = { sortBy: SortBy; minScore: number; maxScore: number };
 
@@ -18,7 +15,7 @@ const SORT_OPTIONS: [SortBy, string][] = [
 type Props = {
   onApply: (filters: FeedFilters) => void;
   onReset: () => void;
-  active: boolean; // true while filters are applied, to show the Reset button
+  active: boolean;
 };
 
 export default function FilterMenu({ onApply, onReset, active }: Props) {

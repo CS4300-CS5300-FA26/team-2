@@ -28,8 +28,8 @@ Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.dra
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-6. Log in at http://localhost:8000/admin/ with your superuser and add a few listings
-7. Open any of the pages below
+In a second terminal, run pn npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
+6. 7. Open any of the pages below
 
 **On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
 and open your DevEdu app link (with the page address at the end) instead of localhost.
@@ -63,7 +63,14 @@ Tests also run automatically on GitHub (GitHub Actions) for every push and pull 
 
 ### US1.1: Sign up
 New users can create an account at `/accounts/signup/`. Weak passwords (too short, too common,
-or all numbers) are rejected. After signing up, users are logged in and sent to the job feed.
+or all numbers) are rejected. After signing up, users are logged in and sent to step 2.
+
+### US1.2 / US1.3: Profile step and email verification
+Step 2 asks for first name, last name and email (one account per email, ignoring case).
+Step 3 emails a 6-digit code that works for 10 minutes; 5 wrong guesses lock it, and
+"Resend code" sends a new one at most once a minute. Until both steps are done, the site
+sends the user back to the step they owe, and the `/api/` endpoints refuse them.
+If `EMAIL_HOST` is not set in prod, step 3 is skipped so new users don't get stuck.
 
 ### US2.1: Resume upload
 Logged-in users can upload a resume (PDF, DOC, or DOCX, up to 5 MB) at `/resumes/upload/`.
@@ -75,22 +82,41 @@ The feedback page provides simple suggestions about what could be improved
 Users can only request feedback for resumes they own
 
 ### US3.1: Credibility score
-Each listing can have a credibility score, added through the admin page.
+Each listing can have a credibility score, added on lisitng creation
+
+### US3.2: Credibility Reasons
+Each credibility score has reasons attached to it that can be seen by hovering over it.
+
+### US3.3: Filters and Sorting
+Listings can be filtered and sorted by different variables
 
 ### US4.1: Bookmark a listing
 On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
 and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
+
 ### US4.2: Saved Jobs Page
 Logged-in users can see all their bookmarked listings at `/saved/`, or by clicking the
 "Saved Jobs" link at the top of the job feed. Each user only sees their own bookmarks.
 If nothing is saved yet, the page shows "You haven't saved any jobs yet."
+
 ### US4.3: Remove a bookmark
 Each job on the Saved Jobs page has a **Remove** button. Clicking it removes the bookmark
 and keeps you on the Saved Jobs page, so the list only shows jobs you still want.
+
 ### US4.4: Private notes on a saved job
 Each job on the Saved Jobs page has a note box. Type why you saved the job and click
 **Add note**. You can add as many notes as you want, and each one has a small **×** to
 delete it. Notes are saved on your bookmark, so only you can see them.
+
+### Real job listings (JobDataLake)
+The job feed shows real tech jobs from companies across the US, pulled from the
+[JobDataLake API](https://jobdatalake.com). Each job shows its location, whether it's
+remote, hybrid, or on-site, and an **Apply** link to the company's page.
+Import new jobs with `python manage.py import_jobs --limit 20` (from `backend`).
+Each run uses **1 API credit**, no matter how many jobs come back, and jobs already
+saved are skipped. Options: `--query` (keywords, default any), `--function`
+(job type, default `eng`; use `""` for all), and `--limit` (1–100).
+The key goes in `backend/.env` as `JOBDATALAKE_API_KEY=...` and is **never committed**.
 
 ### US5.1–US5.6: Job alerts
 Logged-in users can create alerts from keywords, location, or job type on the Alerts page,
@@ -98,6 +124,16 @@ choose email or in-app notifications, pick instant or daily delivery, and pause,
 delete alerts. The Notification History page lists past alerts and the listings that
 triggered them. Matching runs with `python manage.py run_alert_matching` (schedule it hourly).
 Email alerts need the email settings below.
+
+## Azure deployment (gateway -> web + api)
+
+All UI is React (`frontend/`), served by `app-pathfinder-prod-web` (`pm2 serve --spa`). The public
+origin is the nginx gateway (`app-pathfinder-prod-gateway`, `path-finders.app`), which sends only
+`/api/`, `/admin/`, `/static/` and `/media/` to Django (`app-pathfinder-prod-api`) and everything
+else to the React app, so `/login`, `/feed`, `/saved` and `/resumes/...` are client-side routes.
+Every Django JSON endpoint must live under `/api/`. Infra is in `infra/terraform`; deploys run from
+`.github/workflows/deploy.yml` on pushes to `main`. In local dev, Vite proxies the same prefixes to
+`localhost:8000` (`API_ORIGIN` overrides it).
 
 ## Deployment settings (Railway)
 
@@ -110,12 +146,13 @@ Email alerts need the email settings below.
 | `SECRET_KEY` | **Yes** | long random string | Django signing key |
 | `ALLOWED_HOSTS` | **Yes** | `pathfinder-team2.up.railway.app` | Domains the backend answers for |
 | `DATABASE_URL` | **Yes** | `postgres://user:pass@host:5432/db` | Production database |
-| `EMAIL_HOST` | For email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
+| `EMAIL_HOST` | For sign-up codes and email alerts | `smtp.gmail.com` | SMTP server. Leave unset to log emails instead of sending |
 | `EMAIL_HOST_USER` | For email alerts | `alerts@yourdomain.com` | SMTP login |
 | `EMAIL_HOST_PASSWORD` | For email alerts | app password | SMTP password (use an app password, never a personal one) |
 | `DEFAULT_FROM_EMAIL` | Recommended | `Pathfinder <alerts@yourdomain.com>` | "From" address on alert emails (defaults to `EMAIL_HOST_USER`) |
 | `EMAIL_PORT` | Optional | `587` | Defaults to 587 |
 | `EMAIL_USE_TLS` | Optional | `True` | Defaults to True |
+| `JOBDATALAKE_API_KEY` | For real job listings | your JobDataLake key | Lets `python manage.py import_jobs` fetch jobs (1 credit per run) |
 
 > ⚠️ **Alerts only fire when the matching job runs.** Nothing schedules it automatically yet.
 > Add a Railway cron job (e.g. every hour, `0 * * * *`) that runs
@@ -144,6 +181,11 @@ This section records where and when team members used AI assistance: the tool us
 | Seth | Codex (OpenAI) | US2.2 AI resume feedback service, protected view, templates, Behave scenario, and Django tests | Used for guidance and initial code suggestions; I reviewed the code, tested the real website flow, and verified the full test suite and coverage |
 | Nicole | Claude (Anthropic) | US4.3 remove bookmark: Remove button, redirect back to Saved Jobs, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), checked the page in the browser, and committed the final work |
 | Nicole Vance | Claude (Anthropic) | US4.4 private notes: Note model and migrations, add and delete note views, URLs, two-column Saved Jobs layout, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), changed the design to allow multiple notes with a delete x, checked the page in the browser, and committed the final work |
+| Seth | Codex (OpenAI) | US2.6 resume replacement and deletion API, React controls, unit tests, behavior scenarios, styling, and troubleshooting | Used for guidance and code suggestions; I reviewed each change, tested the complete feature in the browser, and ran the automated tests |
+| Dominick | Claude (Anthropic) | US1.2 profile step after sign-up: profile form, step 2 view, URL, sign-up template changes, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Dominick | Claude (Anthropic) | US1.2 review fixes: middleware that sends new users back to step 2 until it's done, duplicate-email check, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Dominick | Claude (Anthropic) | US1.3 email verification: code model and migration, emailed 6-digit code, step 3 verify view, middleware check for unverified users, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
+| Nicole | Claude (Anthropic) | Real job listings from JobDataLake: Listing fields and migration, API client, import_jobs command, tech-job filter, location and Apply link in React, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), tested the real API (and fixed a blocked request by adding a User-Agent header), checked the feed in the browser, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes

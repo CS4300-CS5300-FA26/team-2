@@ -16,6 +16,9 @@ def step_uploaded_resume(context):
     context.user = get_user_model().objects.create_user(
         username="resume-feedback-user",
         password="test-password-123",
+        first_name="Test",
+        last_name="User",
+        email="resume-feedback-user@example.com",
     )
 
     # Log in without using the login form
@@ -38,7 +41,7 @@ def step_request_feedback(context):
 
     # Replace the real service so the test does not call OpenAI
     with patch(
-        "resumes.views.get_resume_feedback"
+        "resumes.api.get_resume_feedback"
     ) as feedback_function:
         feedback_function.return_value = (
             "- Add measurable results to your experience"
@@ -55,7 +58,7 @@ def step_receive_feedback(context):
     context.test.assertEqual(context.response.status_code, 200)
 
     # Confirm that the feedback appeared on the page
-    context.test.assertContains(
-        context.response,
+    context.test.assertIn(
         "Add measurable results to your experience",
+        context.response.json()["feedback"],
     )

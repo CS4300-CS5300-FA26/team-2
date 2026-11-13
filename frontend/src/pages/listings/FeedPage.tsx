@@ -8,14 +8,14 @@ import "./listings.css";
 export default function FeedPage() {
   const [listings, setListings] = useState<Listing[] | null>(null);
   const [error, setError] = useState("");
-  // Initialize filters
   const [filters, setFilters] = useState<FeedFilters | null>(null);
   const authRedirect = useAuthRedirect();
 
+  // Runs when filters change
   useEffect(() => {
     
-    const query = filters
-      ? "?" + new URLSearchParams({
+    // Set query if filters applied
+    const query = filters ? "?" + new URLSearchParams({
           sort_by: filters.sortBy,
           min_score: String(filters.minScore),
           max_score: String(filters.maxScore),
@@ -25,7 +25,6 @@ export default function FeedPage() {
     apiGet<{ listings: Listing[] }>(`/api/listings/feed/${query}`)
       .then((d) => setListings(d.listings))
       .catch((e) => { if (!authRedirect(e)) setError(errorText(e)); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const setSaved = (id: number, saved: boolean) =>

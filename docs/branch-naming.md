@@ -1,6 +1,6 @@
 # Branch naming
 
-Story branches: `feat/<slice>/us<id>-<short-slug>`
+Story branches: `<slice>/feat/us<id>-<short-slug>`
 
 Slices: `signup-user-management`, `file-upload-digitization`, `ai-intelligence`, `bookmarking-search`, `progress-tracking-alerts` — match the long-lived branch names.
 

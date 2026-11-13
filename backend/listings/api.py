@@ -39,7 +39,7 @@ def _listing(listing, saved):
     }
 
 
-# US3.3: ?sort_by=... choices -> the model field to order by
+# Connect what front-end sends for sorting with what django calls it
 SORT_FIELDS = {
     "date-desc": "-created_at",
     "date-asc": "created_at",
@@ -51,15 +51,13 @@ SORT_FIELDS = {
 @api_login_required
 @require_http_methods(["GET"])
 def feed(request):
-    # US3.3: optional ?sort_by=date-desc|date-asc|score-desc|score-asc
-    #        and ?min_score=0..100&max_score=0..100 (both ends included).
-    # With no query string the feed is unchanged (newest first, unscored included).
+    # Get sort w/ date-desc being default
     sort_by = request.GET.get("sort_by", "date-desc")
     if sort_by not in SORT_FIELDS:
         return JsonResponse({"detail": "Invalid sort_by."}, status=400)
-
     listings = Listing.objects.select_related("score")
-
+    
+    # Filter by score
     if "min_score" in request.GET or "max_score" in request.GET:
         try:
             min_score = int(request.GET.get("min_score", 0))
@@ -70,7 +68,9 @@ def feed(request):
             return JsonResponse({"detail": "Score range must satisfy 0 <= min <= max <= 100."}, status=400)
         listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
 
+    # Order listings by the sort fields
     listings = listings.order_by(SORT_FIELDS[sort_by])
+    
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
     return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
 

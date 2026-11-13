@@ -9,7 +9,7 @@ from listings.models import Bookmark, Listing
 # GIVEN: one job is already saved for a logged-in user
 @given("a listing is in my saved jobs list")
 def step_listing_is_saved(context):
-    context.user = User.objects.create_user(username="removeuser", password="testpass123")
+    context.user = User.objects.create_user(username="removeuser", password="testpass123", first_name="Test", last_name="User", email="removeuser@example.com")
     context.test.client.force_login(context.user)
 
     context.listing = Listing.objects.create(title="Backend Intern", company="Northrop")
@@ -21,15 +21,13 @@ def step_listing_is_saved(context):
 def step_remove_bookmark(context):
     # same form the Remove button sends
     context.test.client.post(
-        f"/feed/{context.listing.id}/remove/",
-        {"next": "saved"},
-    )
+        f"/api/listings/{context.listing.id}/remove/")
 
 
 # THEN: the job is gone from the Saved Jobs page
 @then("the listing no longer appears on my Saved Jobs page")
 def step_listing_gone(context):
-    response = context.test.client.get("/saved/")
+    response = context.test.client.get("/api/listings/saved/")
 
     context.test.assertEqual(response.status_code, 200)
-    context.test.assertNotContains(response, "Backend Intern")
+    context.test.assertEqual(response.json()["listings"], [])
