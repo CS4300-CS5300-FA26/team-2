@@ -3,12 +3,8 @@
 # If there's a newer version (or a security fix), it opens a pull request for us.
 # The security report is in the repo's Security tab -> Dependabot.
 #
-# To keep the number of PRs small:
-#   - "groups" puts all the small (minor and patch) updates for each type
-#     into ONE pull request a week, instead of one PR per package
-#   - "ignore" skips big major-version jumps (like Vite 5 -> 8), which
-#     usually break things and need their own planned upgrade.
-#     Security fixes still come through as their own PRs.
+# To keep the number of PRs small, "groups" puts all the small (minor and patch)
+# updates for each type into ONE pull request a week, instead of one PR per package.
 version: 2
 updates:
   # Python packages for the Django backend (backend/requirements.txt)
@@ -19,14 +15,8 @@ updates:
     open-pull-requests-limit: 5
     groups:
       python-packages:
-        patterns:
-          - "*"          # "*" means every package
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # npm packages for the React frontend (frontend/package.json)
   - package-ecosystem: "npm"
@@ -36,13 +26,21 @@ updates:
     open-pull-requests-limit: 5
     groups:
       npm-packages:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    # Major upgrades of these broke our build (Vite 5 -> 8, React 18 -> 19), so we skip
+    # them for now. NOTE: this can also block security PRs that need one of these
+    # major upgrades, so check Security -> Dependabot alerts each sprint.
     ignore:
-      - dependency-name: "*"
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
         update-types: ["version-update:semver-major"]
 
   # the GitHub Actions our workflows use (.github/workflows)
@@ -53,11 +51,5 @@ updates:
     open-pull-requests-limit: 5
     groups:
       github-actions:
-        patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
