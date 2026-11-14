@@ -17,7 +17,6 @@ from openai import OpenAIError
 from unittest.mock import patch
 import os
 
-<<<<<<< HEAD
 class FilterSortingTests(TestCase):
 
     def setUp(self):
@@ -107,8 +106,6 @@ class FilterSortingTests(TestCase):
             with self.subTest(params=params):
                 self.assertEqual(self.client.get("/api/listings/feed/", params).status_code, 400)
 
-=======
->>>>>>> main
 
 class AiTests(TestCase):
 
@@ -124,11 +121,6 @@ class AiTests(TestCase):
 
         # Create listing for the credibility score to be attached to
         self.listing = Listing.objects.create(title="job", company="company")
-<<<<<<< HEAD
-=======
-
-        random.seed()
->>>>>>> main
 
     # Test | If the AI call fails, the listing is still saved with an N/A credibility score
     def test_listing_is_saved_when_ai_call_fails(self):
@@ -177,13 +169,8 @@ class AiTests(TestCase):
         self.score2 = 43
         self.score1 = CredibilityScore.objects.get(listing=self.listing)
         with self.assertRaises(IntegrityError):
-<<<<<<< HEAD
             self.score2 = CredibilityScore.objects.create(listing = self.listing, score=self.score2)
     
-=======
-            self.score2 = CredibilityScore.objects.create(listing=self.listing, score=self.randscore2)
-
->>>>>>> main
     # Test | Upon getting the AI response for credibility score, ensure the parsing function outputs correctly
     def test_parse_credibility_response(self):
         self.assertEqual(

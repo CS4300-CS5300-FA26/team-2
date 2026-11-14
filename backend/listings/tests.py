@@ -115,7 +115,7 @@ class FeedApiTests(ApiTestCase):
 
     def test_unscored_listing_has_null_score(self):
         self.client.force_login(self.user)
-        item = self.client.get(FEED).json()["listings"][0]
+        item = self.client.get(FEED).json()["0"]
         self.assertIsNone(item["score"])
         self.assertEqual(item["reasoning"], "")
 
