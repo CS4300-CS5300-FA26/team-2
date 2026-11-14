@@ -30,7 +30,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",# Serve collected static files when Django runs on Railway
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Serve collected static files when Django runs on Railway
     "corsheaders.middleware.CorsMiddleware",  # must sit before CommonMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -107,6 +107,6 @@ LOGIN_REDIRECT_URL = "/feed"
 # prod.py turns this off when no SMTP server is set, so nobody gets stuck on step 3.
 EMAIL_VERIFICATION = True
 
-#Sprint 3: key for the JobDataLake job API (python manage.py import_jobs).
+# Sprint 3: key for the JobDataLake job API (python manage.py import_jobs).
 # Put it in backend/.env locally and in Azure's app settings. Never commit it.
 JOBDATALAKE_API_KEY = env("JOBDATALAKE_API_KEY", default="")

@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-export type Note = { id: number; text: string };
+// Sprint 3: created_at is when the note was written, like "2026-11-09T19:10:00+00:00"
+export type Note = { id: number; text: string; created_at: string };
 export type Listing = {
   id: number;
   title: string;
@@ -14,6 +15,8 @@ export type Listing = {
   score: number | null;
   reasoning: string;
   notes?: Note[];
+  // Sprint 3 (US4.5): only on the Saved Jobs page, like "applied"
+  status?: string;
 };
 
 export function errorText(e: unknown): string {
@@ -132,4 +135,21 @@ export function JobDetails({ listing }: { listing: Listing }) {
       )}
     </p>
   );
+}
+
+
+// Sprint 3 (US4.5 / US4.6): the statuses a saved job can have.
+// "value" is what the API uses, "label" is what people see.
+export const STATUSES = [
+  { value: "saved", label: "Saved" },
+  { value: "applied", label: "Applied" },
+  { value: "interviewing", label: "Interviewing" },
+  { value: "offer", label: "Offer" },
+  { value: "rejected", label: "Rejected" },
+];
+
+// Sprint 3: turns "2026-11-09T19:10:00+00:00" into "Nov 9, 2026, 12:10 PM"
+// in the viewer's own time zone.
+export function formatDate(iso: string) {
+  return new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }

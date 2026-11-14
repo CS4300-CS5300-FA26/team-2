@@ -28,8 +28,9 @@ Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.dra
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-6. Log in at http://localhost:8000/admin/ with your superuser and add a few listings
-7. Open any of the pages below
+6. In a second terminal, run npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
+7. Go to http://localhost:8000/admin and log in with superuser to add listings
+8. Open any of the pages below
 
 **On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
 and open your DevEdu app link (with the page address at the end) instead of localhost.
@@ -82,22 +83,41 @@ The feedback page provides simple suggestions about what could be improved
 Users can only request feedback for resumes they own
 
 ### US3.1: Credibility score
-Each listing can have a credibility score, added through the admin page.
+Each listing can have a credibility score, added on lisitng creation
+
+### US3.2: Credibility Reasons
+Each credibility score has reasons attached to it that can be seen by hovering over it.
+
+### US3.3: Filters and Sorting
+Listings can be filtered and sorted by different variables
 
 ### US4.1: Bookmark a listing
 On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
 and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
+
 ### US4.2: Saved Jobs Page
 Logged-in users can see all their bookmarked listings at `/saved/`, or by clicking the
 "Saved Jobs" link at the top of the job feed. Each user only sees their own bookmarks.
 If nothing is saved yet, the page shows "You haven't saved any jobs yet."
+
 ### US4.3: Remove a bookmark
 Each job on the Saved Jobs page has a **Remove** button. Clicking it removes the bookmark
 and keeps you on the Saved Jobs page, so the list only shows jobs you still want.
+
 ### US4.4: Private notes on a saved job
 Each job on the Saved Jobs page has a note box. Type why you saved the job and click
 **Add note**. You can add as many notes as you want, and each one has a small **×** to
 delete it. Notes are saved on your bookmark, so only you can see them.
+
+### US4.5: Application status on a saved job
+Each job on the Saved Jobs page has a **status bar** above the note box: Saved, Applied,
+Interviewing, Offer, or Rejected. Click one to set it. The current status is highlighted
+in its own color. New saved jobs start as Saved.
+Each note also shows the date and time it was written.
+
+### US4.6: Filter saved jobs by status
+The **Show** dropdown at the top of the Saved Jobs page shows only the jobs with that
+status (for example, only **Applied**), so you can see which applications need follow-up.
 
 ### Real job listings (JobDataLake)
 The job feed shows real tech jobs from companies across the US, pulled from the
@@ -177,6 +197,7 @@ This section records where and when team members used AI assistance: the tool us
 | Dominick | Claude (Anthropic) | US1.2 review fixes: middleware that sends new users back to step 2 until it's done, duplicate-email check, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Dominick | Claude (Anthropic) | US1.3 email verification: code model and migration, emailed 6-digit code, step 3 verify view, middleware check for unverified users, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Nicole | Claude (Anthropic) | Real job listings from JobDataLake: Listing fields and migration, API client, import_jobs command, tech-job filter, location and Apply link in React, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), tested the real API (and fixed a blocked request by adding a User-Agent header), checked the feed in the browser, and committed the final work |
+| Nicole | Claude (Anthropic) | US4.5 and US4.6: status bar on saved jobs, status filter, and note dates (Bookmark status field and migration, status API, filter, React status bar, unit tests, Behave scenarios, README) | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), chose the status bar design, checked the Saved Jobs page in the browser, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes

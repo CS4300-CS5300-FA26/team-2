@@ -125,6 +125,7 @@ class ResumeUploadTests(TestCase):
             response.json()["results"],
             [],
         )
+
     def test_user_can_delete_their_resume(self):
         resume = self.create_resume()
 
@@ -407,7 +408,6 @@ class ResumeUploadTests(TestCase):
         )
         feedback_function.assert_called_once_with(resume)
 
-
     @patch("resumes.api.get_resume_feedback")
     def test_user_cannot_request_feedback_for_another_resume(
         self,
@@ -428,7 +428,6 @@ class ResumeUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
         feedback_function.assert_not_called()
-
 
     @patch("resumes.api.get_resume_feedback")
     def test_ai_error_returns_503_json(
@@ -453,7 +452,6 @@ class ResumeUploadTests(TestCase):
             response.json()["detail"],
         )
 
-
     @patch("resumes.api.get_resume_feedback")
     def test_feedback_rejects_get_requests(
         self,
@@ -470,7 +468,6 @@ class ResumeUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 405)
         feedback_function.assert_not_called()
-
 
     def test_list_includes_own_resume_fields(self):
         resume = self.create_resume()
