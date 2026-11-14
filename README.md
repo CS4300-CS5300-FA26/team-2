@@ -28,7 +28,7 @@ Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.dra
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-In a second terminal, run pn npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
+In a second terminal, run npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
 6. 7. Open any of the pages below
 
 **On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
