@@ -67,7 +67,7 @@ def feed(request):
     if sort_by not in SORT_FIELDS:
         return JsonResponse({"detail": "Invalid sort_by."}, status=400)
     listings = Listing.objects.select_related("score")
-    
+
     # Filter by score
     if "min_score" in request.GET or "max_score" in request.GET:
         try:
@@ -81,9 +81,9 @@ def feed(request):
 
     # Order listings by the sort fields
     listings = listings.order_by(SORT_FIELDS[sort_by])
-    
+
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
-    return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
+    return JsonResponse({"listings": [_listing(listing, listing.id in saved_ids) for listing in listings]})
 
 
 @api_login_required

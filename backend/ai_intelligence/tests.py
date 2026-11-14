@@ -17,6 +17,7 @@ from openai import OpenAIError
 from unittest.mock import patch
 import os
 
+
 class FilterSortingTests(TestCase):
 
     def setUp(self):
@@ -61,7 +62,7 @@ class FilterSortingTests(TestCase):
         })
 
     def titles(self, response):
-        return [l["title"] for l in response.json()["listings"]]
+        return [listing["title"] for listing in response.json()["listings"]]
 
     def test_score_range_includes_endpoints_and_excludes_out_of_range(self):
         response = self.apply_filters("date-asc")
@@ -169,8 +170,8 @@ class AiTests(TestCase):
         self.score2 = 43
         self.score1 = CredibilityScore.objects.get(listing=self.listing)
         with self.assertRaises(IntegrityError):
-            self.score2 = CredibilityScore.objects.create(listing = self.listing, score=self.score2)
-    
+            self.score2 = CredibilityScore.objects.create(listing=self.listing, score=self.randscore2)
+
     # Test | Upon getting the AI response for credibility score, ensure the parsing function outputs correctly
     def test_parse_credibility_response(self):
         self.assertEqual(
