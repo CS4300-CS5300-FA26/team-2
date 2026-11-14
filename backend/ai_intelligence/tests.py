@@ -1,11 +1,13 @@
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
 from django.test import TestCase    # Obviously needed
+from django.utils import timezone
 
 # Local Models and functions
 from .models import CredibilityScore
 from listings.models import Listing
 from .signals import parse_credibility_response
-
-import random   # TODO: get rid of random calls in tests
 
 # Error types
 from django.db import IntegrityError
@@ -14,6 +16,95 @@ from openai import OpenAIError
 # https://docs.python.org/3/library/unittest.mock.html
 from unittest.mock import patch
 import os
+
+class FilterSortingTests(TestCase):
+
+    def setUp(self):
+        openai_patcher = patch("ai_intelligence.signals.OpenAI")
+        self.mock_openai = openai_patcher.start()
+        self.addCleanup(openai_patcher.stop)
+        self.mock_openai.return_value.chat.completions.create.return_value.choices[0].message.content = (
+            "Reasons: Test score; Final Score: 82"
+        )
+
+        user = get_user_model().objects.create_user(
+            username="filter-test-user", password="test-pass",
+            first_name="Filter", last_name="Tester", email="filter@example.com",
+        )
+        self.client.force_login(user)
+
+        base_time = timezone.now()
+        self.listings = []
+        for index, score in enumerate((40, 60, 80, 90)):
+            listing = Listing.objects.create(
+                title=f"Score {score}",
+                company="Test company",
+            )
+            CredibilityScore.objects.filter(listing=listing).update(score=score)
+            Listing.objects.filter(pk=listing.pk).update(
+                created_at=base_time + timedelta(days=index)
+            )
+            self.listings.append(listing)
+
+        self.unscored_listing = Listing.objects.create(
+            title="Unscored listing",
+            company="Test company",
+        )
+        CredibilityScore.objects.filter(listing=self.unscored_listing).update(score=None)
+
+    def apply_filters(self, sort_by, min_score="40", max_score="80"):
+        # US3.3 now lives on the JSON feed: GET /api/listings/feed/?sort_by=&min_score=&max_score=
+        return self.client.get("/api/listings/feed/", {
+            "sort_by": sort_by,
+            "min_score": min_score,
+            "max_score": max_score,
+        })
+
+    def titles(self, response):
+        return [l["title"] for l in response.json()["listings"]]
+
+    def test_score_range_includes_endpoints_and_excludes_out_of_range(self):
+        response = self.apply_filters("date-asc")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.titles(response), ["Score 40", "Score 60", "Score 80"])
+
+    def test_sort_choices_order_filtered_listings(self):
+        expected_titles = {
+            "date-desc": ["Score 80", "Score 60", "Score 40"],
+            "date-asc": ["Score 40", "Score 60", "Score 80"],
+            "score-desc": ["Score 80", "Score 60", "Score 40"],
+            "score-asc": ["Score 40", "Score 60", "Score 80"],
+        }
+
+        for sort_by, titles in expected_titles.items():
+            with self.subTest(sort_by=sort_by):
+                response = self.apply_filters(sort_by)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(self.titles(response), titles)
+
+    def test_feed_without_query_string_is_unchanged(self):
+        # no query string -> nothing is filtered out, so the unscored listing is still shown
+        response = self.client.get("/api/listings/feed/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            self.titles(response),
+            ["Score 40", "Score 60", "Score 80", "Score 90", "Unscored listing"],
+        )
+
+    def test_invalid_filter_input_is_rejected(self):
+        bad_requests = [
+            {"sort_by": "bogus"},
+            {"sort_by": "date-asc", "min_score": "abc", "max_score": "80"},
+            {"sort_by": "date-asc", "min_score": "70", "max_score": "30"},   # min > max
+            {"sort_by": "date-asc", "min_score": "-5", "max_score": "80"},
+            {"sort_by": "date-asc", "min_score": "0", "max_score": "101"},
+        ]
+        for params in bad_requests:
+            with self.subTest(params=params):
+                self.assertEqual(self.client.get("/api/listings/feed/", params).status_code, 400)
 
 
 class AiTests(TestCase):
@@ -30,8 +121,6 @@ class AiTests(TestCase):
 
         # Create listing for the credibility score to be attached to
         self.listing = Listing.objects.create(title="job", company="company")
-
-        random.seed()
 
     # Test | If the AI call fails, the listing is still saved with an N/A credibility score
     def test_listing_is_saved_when_ai_call_fails(self):
@@ -76,12 +165,12 @@ class AiTests(TestCase):
 
     # Test | Upon an attempt to add two credibility scores to a listing, an error is thrown
     def test_only_one_cred_score(self):
-        self.randscore1 = random.randint(0, 100)
-        self.randscore2 = random.randint(0, 100)
+        self.score = 42
+        self.score2 = 43
         self.score1 = CredibilityScore.objects.get(listing=self.listing)
         with self.assertRaises(IntegrityError):
-            self.score2 = CredibilityScore.objects.create(listing=self.listing, score=self.randscore2)
-
+            self.score2 = CredibilityScore.objects.create(listing = self.listing, score=self.score2)
+    
     # Test | Upon getting the AI response for credibility score, ensure the parsing function outputs correctly
     def test_parse_credibility_response(self):
         self.assertEqual(

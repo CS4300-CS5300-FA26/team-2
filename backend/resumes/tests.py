@@ -125,7 +125,6 @@ class ResumeUploadTests(TestCase):
             response.json()["results"],
             [],
         )
-
     def test_user_can_delete_their_resume(self):
         resume = self.create_resume()
 

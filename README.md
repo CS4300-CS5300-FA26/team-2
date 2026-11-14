@@ -28,8 +28,8 @@ Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.dra
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-6. Log in at http://localhost:8000/admin/ with your superuser and add a few listings
-7. Open any of the pages below
+In a second terminal, run npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
+6. 7. Open any of the pages below
 
 **On DevEdu:** start the server with `python manage.py runserver 0.0.0.0:3000` instead,
 and open your DevEdu app link (with the page address at the end) instead of localhost.
@@ -82,18 +82,27 @@ The feedback page provides simple suggestions about what could be improved
 Users can only request feedback for resumes they own
 
 ### US3.1: Credibility score
-Each listing can have a credibility score, added through the admin page.
+Each listing can have a credibility score, added on lisitng creation
+
+### US3.2: Credibility Reasons
+Each credibility score has reasons attached to it that can be seen by hovering over it.
+
+### US3.3: Filters and Sorting
+Listings can be filtered and sorted by different variables
 
 ### US4.1: Bookmark a listing
 On the job feed (`/feed/`), each listing has a bookmark icon. Clicking it saves the listing,
 and the icon fills in to show it's bookmarked. Clicking it again removes the bookmark.
+
 ### US4.2: Saved Jobs Page
 Logged-in users can see all their bookmarked listings at `/saved/`, or by clicking the
 "Saved Jobs" link at the top of the job feed. Each user only sees their own bookmarks.
 If nothing is saved yet, the page shows "You haven't saved any jobs yet."
+
 ### US4.3: Remove a bookmark
 Each job on the Saved Jobs page has a **Remove** button. Clicking it removes the bookmark
 and keeps you on the Saved Jobs page, so the list only shows jobs you still want.
+
 ### US4.4: Private notes on a saved job
 Each job on the Saved Jobs page has a note box. Type why you saved the job and click
 **Add note**. You can add as many notes as you want, and each one has a small **×** to

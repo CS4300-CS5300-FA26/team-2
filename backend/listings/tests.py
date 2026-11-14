@@ -10,6 +10,8 @@ from django.test import TestCase, override_settings  # override_settings = prete
 
 from ai_intelligence.models import CredibilityScore
 
+from ai_intelligence.models import CredibilityScore
+
 from .models import Bookmark, Listing, Note
 from .jobdatalake import save_jobs, search_jobs  # Sprint 3: for the import tests
 
@@ -281,6 +283,16 @@ class ProfileGateTests(TestCase):
 # "patch" swaps the real urlopen (the thing that calls the website) for a fake,
 # and we tell the fake what to reply. So the tests are fast, work offline,
 # and never spend our credits.
+
+# (these imports are down here so this whole block can be pasted at the end of the file)
+import json  # to build a fake JSON reply
+from io import BytesIO  # makes text act like a reply from a website
+from unittest.mock import patch  # swaps real code for a fake during a test
+from urllib.error import HTTPError, URLError  # the errors urlopen can raise
+
+from django.core.management import call_command  # runs "python manage.py ..." inside a test
+from django.core.management.base import CommandError
+from django.test import override_settings  # pretend a setting has a different value
 
 
 # One fake job, shaped exactly like a job in the API's real reply
