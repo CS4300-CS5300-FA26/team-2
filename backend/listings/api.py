@@ -6,6 +6,7 @@ from functools import wraps
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
+from django.db.models import F
 
 from .models import Bookmark, Listing, Note
 
@@ -54,8 +55,8 @@ def _listing(listing, saved):
 SORT_FIELDS = {
     "date-desc": "-created_at",
     "date-asc": "created_at",
-    "score-desc": "-score__score",
-    "score-asc": "score__score",
+    "score-desc": F("score__score").desc(nulls_last=True),
+    "score-asc": F("score__score").asc(nulls_last=True),
 }
 
 
@@ -77,7 +78,9 @@ def feed(request):
             return JsonResponse({"detail": "Scores must be whole numbers."}, status=400)
         if not (0 <= min_score <= max_score <= 100):
             return JsonResponse({"detail": "Score range must satisfy 0 <= min <= max <= 100."}, status=400)
-        listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
+        # Prevent unscored from not appearing when not filtered
+        if not (min_score == 0 and max_score == 100):
+            listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
 
     # Order listings by the sort fields
     listings = listings.order_by(SORT_FIELDS[sort_by])
