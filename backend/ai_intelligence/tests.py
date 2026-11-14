@@ -170,7 +170,7 @@ class AiTests(TestCase):
         self.score2 = 43
         self.score1 = CredibilityScore.objects.get(listing=self.listing)
         with self.assertRaises(IntegrityError):
-            self.score2 = CredibilityScore.objects.create(listing=self.listing, score=self.randscore2)
+            self.score2 = CredibilityScore.objects.create(listing=self.listing, score=self.score2)
 
     # Test | Upon getting the AI response for credibility score, ensure the parsing function outputs correctly
     def test_parse_credibility_response(self):
