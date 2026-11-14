@@ -62,8 +62,4 @@ def step_receive_feedback(context):
     context.test.assertIn(
         "Add measurable results to your experience",
         context.response.json()["feedback"],
-<<<<<<< HEAD
     )
-=======
-    )
->>>>>>> main
