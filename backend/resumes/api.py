@@ -56,10 +56,6 @@ def resumes(request):
     items = request.user.resumes.order_by("-uploaded_at")
     return JsonResponse({"results": [serialize(r) for r in items]})
 
-<<<<<<< HEAD
-=======
-
->>>>>>> main
 @api_login_required
 @require_http_methods(["DELETE"])
 def delete_resume(request, resume_id):
@@ -82,10 +78,6 @@ def delete_resume(request, resume_id):
 
     return HttpResponse(status=204)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> main
 @api_login_required
 @require_POST
 def replace_resume(request, resume_id):
@@ -144,11 +136,8 @@ def replace_resume(request, resume_id):
         serialize(updated_resume),
         status=200,
     )
-<<<<<<< HEAD
-=======
 
 
->>>>>>> main
 @api_login_required
 @require_POST
 def resume_feedback(request, resume_id):
