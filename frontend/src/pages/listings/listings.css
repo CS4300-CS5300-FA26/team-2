@@ -97,3 +97,6 @@
 .status-option--rejected[aria-pressed="true"] { background: #be123c; }
 .note-column .note-form textarea { width: 100%; }
 .note-date { font-size: 12px; font-style: normal; opacity: 0.65; white-space: nowrap; }
+
+/* Report button stuff */
+.report-button {background: none; border: none; color: inherit;}

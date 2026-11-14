@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { apiGet, apiPost } from "../../api/client";
 import { CredScore, Listing, errorText, useAuthRedirect, JobDetails } from "./shared";
 import FilterMenu, { FeedFilters } from "./FilterMenu"; // In an effort to not touch other's work as much as possible
+import ReportMenu from "./ReportMenu";
 import "./listings.css";
 
 export default function FeedPage() {
@@ -74,6 +75,7 @@ export default function FeedPage() {
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                 </svg>
               </button>
+              <ReportMenu />
             </div>
           </li>
         ))}
