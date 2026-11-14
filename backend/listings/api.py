@@ -6,6 +6,7 @@ from functools import wraps
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
+from django.db.models import F
 
 from .models import Bookmark, Listing, Note
 
@@ -50,11 +51,41 @@ def _listing(listing, saved):
     }
 
 
+# Connect what front-end sends for sorting with what django calls it
+SORT_FIELDS = {
+    "date-desc": "-created_at",
+    "date-asc": "created_at",
+    "score-desc": F("score__score").desc(nulls_last=True),
+    "score-asc": F("score__score").asc(nulls_last=True),
+}
+
+
 @api_login_required
 @require_http_methods(["GET"])
 def feed(request):
+    # Get sort w/ date-desc being default
+    sort_by = request.GET.get("sort_by", "date-desc")
+    if sort_by not in SORT_FIELDS:
+        return JsonResponse({"detail": "Invalid sort_by."}, status=400)
+    listings = Listing.objects.select_related("score")
+
+    # Filter by score
+    if "min_score" in request.GET or "max_score" in request.GET:
+        try:
+            min_score = int(request.GET.get("min_score", 0))
+            max_score = int(request.GET.get("max_score", 100))
+        except ValueError:
+            return JsonResponse({"detail": "Scores must be whole numbers."}, status=400)
+        if not (0 <= min_score <= max_score <= 100):
+            return JsonResponse({"detail": "Score range must satisfy 0 <= min <= max <= 100."}, status=400)
+        # Prevent unscored from not appearing when not filtered
+        if not (min_score == 0 and max_score == 100):
+            listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
+
+    # Order listings by the sort fields
+    listings = listings.order_by(SORT_FIELDS[sort_by])
+
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
-    listings = Listing.objects.select_related("score").order_by("-created_at")
     return JsonResponse({"listings": [_listing(listing, listing.id in saved_ids) for listing in listings]})
 
 

@@ -47,6 +47,38 @@
 .job-details { font-size: 14px; margin-top: 4px !important; }
 .job-details a { font-weight: bold; margin-left: 6px; }
 
+/* US3.3: filter + sort dropdown (ported from the old feed.html) */
+.filter-menu { display: flex; justify-content: flex-end; margin: 8px 0; }
+.filter-menu details { position: relative; }
+.filter-menu summary { list-style: none; }
+.filter-menu summary::-webkit-details-marker { display: none; }
+.filter-button { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+.filter-button:hover { background: rgb(73, 70, 70); }
+.filter-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.filter-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 2; box-sizing: border-box; width: min(700px, calc(100vw - 32px)); padding: 16px; display: flex; align-items: flex-start; gap: 24px; background: #fff; color: #dddfe8; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); }
+.filter-section { flex: 1; min-width: 0; border: none; margin: 0; padding: 0; }
+.filter-section legend, .filter-legend { display: block; padding: 0; margin: 0 0 12px; font-weight: bold; font-size: 14px; }
+.filter-sort-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.filter-actions { display: flex; flex-direction: column; gap: 8px; align-self: flex-end; }
+
+/* two range sliders stacked on one track; each slider's thumb stays clickable */
+.filter-sliders { position: relative; height: 24px; }
+.filter-sliders::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #c6c6c6; transform: translateY(-50%); }
+.filter-sliders input[type="range"] { -webkit-appearance: none; appearance: none; position: absolute; top: 50%; left: 0; width: 100%; height: 24px; margin: 0; background: transparent !important; transform: translateY(-50%); pointer-events: none; border:none !important; border-radius: 0 !important; padding: 0 !important }
+.filter-sliders input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: transparent; }
+.filter-sliders input[type="range"]::-moz-range-track { height: 2px; background: transparent; }
+.filter-sliders input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -7px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
+.filter-sliders input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid #8a9ba3; border-radius: 50%; background: #b0edff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); cursor: pointer; pointer-events: all; }
+.filter-min { z-index: 2; }
+.filter-max { z-index: 1; }
+.filter-range-values { display: flex; justify-content: space-between; color: #555; font-size: 14px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 560px) {
+  .filter-dropdown { flex-direction: column; gap: 16px; }
+  .filter-section { width: 100%; }
+  .filter-actions { flex-direction: row; align-self: flex-start; }
+}
 /* Sprint 3: status filter, status bar, and note dates */
 .status-filter { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-weight: 600; }
 .status-filter select { width: auto; padding: 4px 8px; }

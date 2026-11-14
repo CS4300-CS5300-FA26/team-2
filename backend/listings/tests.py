@@ -274,6 +274,7 @@ class ProfileGateTests(TestCase):
             self.assertEqual(response.status_code, 403)
             self.assertEqual(response.json()["detail"], "Complete your profile first.")
 
+
 # Sprint 3
 # Tests for importing real jobs from the JobDataLake API.
 #
@@ -281,7 +282,6 @@ class ProfileGateTests(TestCase):
 # "patch" swaps the real urlopen (the thing that calls the website) for a fake,
 # and we tell the fake what to reply. So the tests are fast, work offline,
 # and never spend our credits.
-
 
 # One fake job, shaped exactly like a job in the API's real reply
 FAKE_JOB = {
