@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # Raw source, not a pre-built artifact. SCM_DO_BUILD_DURING_DEPLOYMENT
       # is set on the Web App (infra/terraform/app_service.tf), so Oryx
@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Node
         uses: actions/setup-node@v5
@@ -93,7 +93,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # ACR's built-in admin account, not a service principal -- CI
       # pushing via a new AAD app is blocked by this tenant's policy
