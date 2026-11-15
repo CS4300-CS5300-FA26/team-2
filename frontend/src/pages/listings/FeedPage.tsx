@@ -2,19 +2,30 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet, apiPost } from "../../api/client";
 import { CredScore, Listing, errorText, useAuthRedirect, JobDetails } from "./shared";
+import FilterMenu, { FeedFilters } from "./FilterMenu"; // In an effort to not touch other's work as much as possible
 import "./listings.css";
 
 export default function FeedPage() {
   const [listings, setListings] = useState<Listing[] | null>(null);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<FeedFilters | null>(null);
   const authRedirect = useAuthRedirect();
 
+  // Runs when filters change
   useEffect(() => {
-    apiGet<{ listings: Listing[] }>("/api/listings/feed/")
+    
+    // Set query if filters applied
+    const query = filters ? "?" + new URLSearchParams({
+          sort_by: filters.sortBy,
+          min_score: String(filters.minScore),
+          max_score: String(filters.maxScore),
+        }).toString()
+      : "";
+    setError("");
+    apiGet<{ listings: Listing[] }>(`/api/listings/feed/${query}`)
       .then((d) => setListings(d.listings))
       .catch((e) => { if (!authRedirect(e)) setError(errorText(e)); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filters]);
 
   const setSaved = (id: number, saved: boolean) =>
     setListings((ls) => ls && ls.map((l) => (l.id === id ? { ...l, saved } : l)));
@@ -38,9 +49,10 @@ export default function FeedPage() {
         <h1>Job Feed</h1>
         <Link to="/saved">Saved Jobs</Link>
       </header>
+      <FilterMenu active={filters !== null} onApply={setFilters} onReset={() => setFilters(null)} />
       {error && <p role="alert" className="listings-error">{error}</p>}
       {listings === null && !error && <p role="status">Loading jobs…</p>}
-      {listings?.length === 0 && <p>No listings yet.</p>}
+      {listings?.length === 0 && <p>{filters ? "No listings match these filters." : "No listings yet."}</p>}
       <ul className="listings-list">
         {listings?.map((l) => (
           <li key={l.id} className="card listing">
