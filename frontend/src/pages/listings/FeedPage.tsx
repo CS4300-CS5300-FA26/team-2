@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet, apiPost } from "../../api/client";
-import { CredScore, Listing, errorText, useAuthRedirect, JobDetails } from "./shared";
-import FilterMenu, { FeedFilters } from "./FilterMenu"; // In an effort to not touch other's work as much as possible
-import ReportMenu from "./ReportMenu";
+import { CredScore, Listing, errorText, useAuthRedirect, JobDetails, ReportReason } from "./shared";
+import FilterMenu, { FeedFilters } from "./FilterMenu";
 import "./listings.css";
 
 export default function FeedPage() {
@@ -54,14 +53,42 @@ export default function FeedPage() {
       {error && <p role="alert" className="listings-error">{error}</p>}
       {listings === null && !error && <p role="status">Loading jobs…</p>}
       {listings?.length === 0 && <p>{filters ? "No listings match these filters." : "No listings yet."}</p>}
+
       <ul className="listings-list">
         {listings?.map((l) => (
-          <li key={l.id} className="card listing">
-            <div>
-              <h3>{l.title}</h3>
-              <p>{l.company}</p>
+          <ListingCard l={l}/>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/*
+Moved this to a seperate component so that I can tell specifically which Listing is being reported for US3.4 - Josh
+*/
+function ListingCard({ l }: {l: Listing}) {
+
+  // Change card if being reported
+  const [isBeingReported, setIsBeingReported] = useState(false);
+
+  const REPORT_OPTIONS: [ReportReason, string][] = [
+    ["fake", "This Listing Seems Fake or a Scam"],
+    ["inappropriate", "This listing is inappropriate"],
+    ["harmful-or-illegal", "This listing is for a harmful or illegal job."],
+  ]
+
+  function makeReport(l: Listing) {
+    setIsBeingReported(false);
+  }
+
+  if (!isBeingReported) {
+    return (
+      <li key={l.id} className="card listing">
+        <div>
+          <h3>{l.title}</h3>
+            <p>{l.company}</p>
               <JobDetails listing={l} />
-            </div>
+          </div>
             <div className="listing-actions">
               <CredScore listing={l} />
               <button
@@ -69,17 +96,56 @@ export default function FeedPage() {
                 className="bookmark-button"
                 aria-label={l.saved ? "Remove bookmark" : "Bookmark listing"}
                 aria-pressed={l.saved}
-                onClick={() => toggle(l)}
+                //onClick={() => toggle(l)}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill={l.saved ? "currentColor" : "none"} aria-hidden="true">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                 </svg>
               </button>
-              <ReportMenu />
+
+              <div className="report-button">
+                <button
+                  type="button"
+                  className="report-button"
+                  aria-label="Report listing"
+                  onClick={() => setIsBeingReported(true)}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 13v8q0 .425-.288.713T6 22t-.712-.288T5 21V4q0-.425.288-.712T6 3h13.525q.275 0 .488.125t.337.325t.162.438t-.062.487L19 8l1.45 3.625q.1.25.063.488t-.163.437t-.337.325t-.488.125zm0-2h11.05l-.9-2.25Q17 8.4 17 8t.15-.75l.9-2.25H7zm0 0V5z"/>
+                  </svg>
+                </button>
+              </div>
+
             </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+      </li>
+    );
+  }
+  else if (isBeingReported) {
+    return (
+      <li key={l.id} className="card listing">
+        <h3>Please select a report reason:</h3>
+        <div className="report-reason-response">
+          <fieldset>
+            {REPORT_OPTIONS.map(([value, label]) => (
+              <label key={value} className="report-sort-option">
+                {label}
+                <input
+                  type="radio"
+                  name="report-for"
+                  value={value}
+                >
+                </input>
+              </label>
+            ))}   
+          </fieldset>
+        </div>
+        <button 
+          className="report-submit"
+          onClick={() => makeReport(l)}
+        >
+          Submit Report
+        </button>
+      </li>
+    );
+  }
 }

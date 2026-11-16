@@ -153,3 +153,5 @@ export const STATUSES = [
 export function formatDate(iso: string) {
   return new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
+
+export type ReportReason = "fake" | "inappropriate" | "harmful-or-illegal"
