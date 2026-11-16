@@ -6,8 +6,20 @@ from functools import wraps
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
+from django.db.models import F
 
 from .models import Bookmark, Listing, Note
+
+# Sprint 3
+# the status names a saved job can have: saved, applied, interviewing, offer, rejected
+STATUSES = [value for value, label in Bookmark.STATUS_CHOICES]
+
+
+# Sprint 3: one note as JSON, including when it was written.
+# isoformat() turns the date into text like "2026-11-09T19:10:00+00:00",
+# which the React page turns into "Nov 9, 2026, 12:10 PM" in your own time zone.
+def _note(note):
+    return {"id": note.id, "text": note.text, "created_at": note.created_at.isoformat()}
 
 
 def api_login_required(view):
@@ -29,18 +41,52 @@ def _listing(listing, saved):
         "id": listing.id,
         "title": listing.title,
         "company": listing.company,
+        # Sprint 3: details from imported JobDataLake jobs (empty for hand-added ones)
+        "location": listing.location,
+        "remote_type": listing.remote_type,
+        "apply_url": listing.apply_url,
         "saved": saved,
         "score": score.score if has_score else None,
         "reasoning": (score.reasoning or "") if has_score else "",
     }
 
 
+# Connect what front-end sends for sorting with what django calls it
+SORT_FIELDS = {
+    "date-desc": "-created_at",
+    "date-asc": "created_at",
+    "score-desc": F("score__score").desc(nulls_last=True),
+    "score-asc": F("score__score").asc(nulls_last=True),
+}
+
+
 @api_login_required
 @require_http_methods(["GET"])
 def feed(request):
+    # Get sort w/ date-desc being default
+    sort_by = request.GET.get("sort_by", "date-desc")
+    if sort_by not in SORT_FIELDS:
+        return JsonResponse({"detail": "Invalid sort_by."}, status=400)
+    listings = Listing.objects.select_related("score")
+
+    # Filter by score
+    if "min_score" in request.GET or "max_score" in request.GET:
+        try:
+            min_score = int(request.GET.get("min_score", 0))
+            max_score = int(request.GET.get("max_score", 100))
+        except ValueError:
+            return JsonResponse({"detail": "Scores must be whole numbers."}, status=400)
+        if not (0 <= min_score <= max_score <= 100):
+            return JsonResponse({"detail": "Score range must satisfy 0 <= min <= max <= 100."}, status=400)
+        # Prevent unscored from not appearing when not filtered
+        if not (min_score == 0 and max_score == 100):
+            listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
+
+    # Order listings by the sort fields
+    listings = listings.order_by(SORT_FIELDS[sort_by])
+
     saved_ids = set(Bookmark.objects.filter(user=request.user).values_list("listing_id", flat=True))
-    listings = Listing.objects.select_related("score").order_by("-created_at")
-    return JsonResponse({"listings": [_listing(l, l.id in saved_ids) for l in listings]})
+    return JsonResponse({"listings": [_listing(listing, listing.id in saved_ids) for listing in listings]})
 
 
 @api_login_required
@@ -68,10 +114,23 @@ def saved_jobs(request):
         .prefetch_related("notes")
         .order_by("-created_at")
     )
+
+    # Sprint 3
+    # US4.6: /api/listings/saved/?status=applied shows only "applied" jobs.
+    # No ?status= means show every saved job.
+    status = request.GET.get("status", "")
+    if status:
+        if status not in STATUSES:
+            return JsonResponse({"detail": "Unknown status."}, status=400)
+        bookmarks = bookmarks.filter(status=status)
+
     out = []
     for b in bookmarks:
         item = _listing(b.listing, True)
-        item["notes"] = [{"id": n.id, "text": n.text} for n in b.notes.all()]
+        # Sprint 3: each note also sends when it was written
+        item["notes"] = [_note(n) for n in b.notes.all()]
+        # Sprint 3 (US4.5): where I am with this application
+        item["status"] = b.status
         out.append(item)
     return JsonResponse({"listings": out})
 
@@ -88,7 +147,8 @@ def add_note(request, listing_id):
     if not text:
         return JsonResponse({"detail": "Note cannot be empty."}, status=400)
     note = Note.objects.create(bookmark=bookmark, text=text)
-    return JsonResponse({"id": note.id, "text": note.text}, status=201)
+    # Sprint 3: send the date and time too, so the page can show it right away
+    return JsonResponse(_note(note), status=201)
 
 
 @api_login_required
@@ -97,3 +157,27 @@ def delete_note(request, note_id):
     # only notes on MY bookmarks; others 404
     get_object_or_404(Note, id=note_id, bookmark__user=request.user).delete()
     return JsonResponse({"id": note_id, "deleted": True})
+
+
+# Sprint 3
+# US4.5: set the status of one of my saved jobs.
+# The page sends {"status": "applied"} to /api/listings/<id>/status/
+@api_login_required
+@require_http_methods(["POST"])
+def set_status(request, listing_id):
+    # 404 unless it's MY saved job, so nobody can change someone else's
+    bookmark = get_object_or_404(Bookmark, user=request.user, listing_id=listing_id)
+
+    # read the new status from the request (empty if the body is broken)
+    try:
+        status = str(json.loads(request.body or b"{}").get("status", ""))
+    except (ValueError, AttributeError):
+        status = ""
+
+    # only the five allowed statuses can be saved
+    if status not in STATUSES:
+        return JsonResponse({"detail": "Unknown status."}, status=400)
+
+    bookmark.status = status
+    bookmark.save()
+    return JsonResponse({"id": listing_id, "status": bookmark.status})

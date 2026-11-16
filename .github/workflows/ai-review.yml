@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           # get full history so we can compare this branch to the base branch
           fetch-depth: 0
@@ -27,7 +27,7 @@ jobs:
         run: git diff "origin/${{ github.base_ref }}...HEAD" > pr.diff
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 

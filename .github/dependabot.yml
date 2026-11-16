@@ -1,0 +1,41 @@
+# Dependabot (Sprint 3)
+# Once a week, Dependabot checks the packages our project uses.
+# If there's a newer version (or a security fix), it opens a pull request for us.
+# The security report is in the repo's Security tab -> Dependabot.
+#
+# To keep the number of PRs small, "groups" puts all the small (minor and patch)
+# updates for each type into ONE pull request a week, instead of one PR per package.
+version: 2
+updates:
+  # Python packages for the Django backend (backend/requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-packages:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # npm packages for the React frontend (frontend/package.json)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-packages:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # the GitHub Actions our workflows use (.github/workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
