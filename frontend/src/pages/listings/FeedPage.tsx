@@ -67,7 +67,7 @@ export default function FeedPage() {
 
       <ul className="listings-list">
         {listings?.map((l) => (
-          <ListingCard l={l} toggle={toggle} report={reportListing}/>
+          <ListingCard l={l} toggle={toggle} report={reportListing} key={l.id}/>
         ))}
       </ul>
     </div>
@@ -79,6 +79,7 @@ interface ListingCardProps {
   l: Listing,
   toggle: Function,
   report: (id: number, reason: string) => Promise<boolean>
+  key: number
 }
 
 /*
@@ -86,7 +87,7 @@ Moved this to a seperate component so that I can tell specifically which Listing
 I tried so hard to not have to make changes this big to it, but this is the best way I could see.
 tbf this does also help with SRP
 */
-function ListingCard({ l, toggle, report }: ListingCardProps) {
+function ListingCard({ l, toggle, report, key }: ListingCardProps) {
 
   // Change card in reporting stages
   const [isBeingReported, setIsBeingReported] = useState(false);
@@ -102,7 +103,7 @@ function ListingCard({ l, toggle, report }: ListingCardProps) {
   // Shows after submit report button is pressed
   if (isReported) {
     return (
-      <li key={l.id} className="card listing">
+      <li key={key} className="card listing">
         <p>Thank you for your report!</p>
       </li>
     )
