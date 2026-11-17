@@ -63,7 +63,7 @@ Tests also run automatically on GitHub (GitHub Actions) for every push and pull 
 ## Features
 
 ### US1.1: Sign up
-New users can create an account at `/accounts/signup/`. Weak passwords (too short, too common,
+New users can create an account at `/signup`. Weak passwords (too short, too common,
 or all numbers) are rejected. After signing up, users are logged in and sent to step 2.
 
 ### US1.2 / US1.3: Profile step and email verification
@@ -72,6 +72,16 @@ Step 3 emails a 6-digit code that works for 10 minutes; 5 wrong guesses lock it,
 "Resend code" sends a new one at most once a minute. Until both steps are done, the site
 sends the user back to the step they owe, and the `/api/` endpoints refuse them.
 If `EMAIL_HOST` is not set in prod, step 3 is skipped so new users don't get stuck.
+Once the account is verified, the email can't be changed through the sign-up API (so it can't skip
+verification). On step 3, "Change it" fixes a mistyped email and sends a new code (the old one stops working),
+and two requests at the same moment can't get extra code guesses or extra code emails.
+
+### US1.4: Username and real name
+The username (step 1, used to log in) is separate from the real name (step 2), and both are
+saved to the profile. Usernames are unique ignoring capitals; two people can share a real name.
+The People page (`/people`) shows your own name and username and lets you find other users by
+real name or username (`GET /api/people/?q=`). Results never include emails, and accounts that
+haven't finished signing up don't show.
 
 ### US2.1: Resume upload
 Logged-in users can upload a resume (PDF, DOC, or DOCX, up to 5 MB) at `/resumes/upload/`.
