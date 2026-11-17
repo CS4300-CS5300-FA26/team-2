@@ -13,7 +13,6 @@ export default function FeedPage() {
 
   // Runs when filters change
   useEffect(() => {
-    
     // Set query if filters applied
     const query = filters ? "?" + new URLSearchParams({
           sort_by: filters.sortBy,
@@ -43,6 +42,17 @@ export default function FeedPage() {
     }
   }
 
+  async function reportListing(id: number, reason: string): Promise<boolean> {
+    setError("");
+    try {
+      await apiPost(`/api/listings/${id}/report/`, { reason });
+      return true;
+    } catch (e) {
+      if (!authRedirect(e)) setError(errorText(e));
+      return false;
+    }
+  }
+
   return (
     <div className="listings-page">
       <header className="listings-header">
@@ -56,20 +66,29 @@ export default function FeedPage() {
 
       <ul className="listings-list">
         {listings?.map((l) => (
-          <ListingCard l={l}/>
+          <ListingCard l={l} toggle={toggle} report={reportListing}/>
         ))}
       </ul>
     </div>
   );
 }
 
+interface ListingCardProps {
+  l: Listing,
+  toggle: Function,
+  report: (id: number, reason: string) => Promise<boolean>
+}
+
 /*
 Moved this to a seperate component so that I can tell specifically which Listing is being reported for US3.4 - Josh
+I tried so hard to not have to make changes this big to it, but this is the best way I could see.
+tbf this does also help with SRP
 */
-function ListingCard({ l }: {l: Listing}) {
+function ListingCard({ l, toggle, report }: ListingCardProps) {
 
   // Change card if being reported
   const [isBeingReported, setIsBeingReported] = useState(false);
+  const [isReported, setIsReported] = useState(false);
 
   const REPORT_OPTIONS: [ReportReason, string][] = [
     ["fake", "This Listing Seems Fake or a Scam"],
@@ -77,11 +96,14 @@ function ListingCard({ l }: {l: Listing}) {
     ["harmful-or-illegal", "This listing is for a harmful or illegal job."],
   ]
 
-  function makeReport(l: Listing) {
-    setIsBeingReported(false);
+  if (isReported) {
+    return (
+      <li key={l.id} className="card listing">
+        <p>Thank you for your report!</p>
+      </li>
+    )
   }
-
-  if (!isBeingReported) {
+  else if (!isBeingReported) {
     return (
       <li key={l.id} className="card listing">
         <div>
@@ -96,7 +118,7 @@ function ListingCard({ l }: {l: Listing}) {
                 className="bookmark-button"
                 aria-label={l.saved ? "Remove bookmark" : "Bookmark listing"}
                 aria-pressed={l.saved}
-                //onClick={() => toggle(l)}
+                onClick={() => toggle(l)}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill={l.saved ? "currentColor" : "none"} aria-hidden="true">
                   <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -124,27 +146,41 @@ function ListingCard({ l }: {l: Listing}) {
     return (
       <li key={l.id} className="card listing">
         <h3>Please select a report reason:</h3>
-        <div className="report-reason-response">
-          <fieldset>
-            {REPORT_OPTIONS.map(([value, label]) => (
-              <label key={value} className="report-sort-option">
-                {label}
-                <input
-                  type="radio"
-                  name="report-for"
-                  value={value}
-                >
-                </input>
-              </label>
-            ))}   
-          </fieldset>
-        </div>
-        <button 
-          className="report-submit"
-          onClick={() => makeReport(l)}
+        <form
+          className="report-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const reason = new FormData(e.currentTarget).get("report-for");
+            if (typeof reason !== "string") return;
+            if (await report(l.id, reason)) {
+              setIsBeingReported(false);
+              setIsReported(true);
+            }
+          }}
         >
-          Submit Report
-        </button>
+          <div className="report-reason-response">
+            <fieldset>
+              {REPORT_OPTIONS.map(([value, label]) => (
+                <label key={value} className="report-sort-option">
+                  {label}
+                  <input
+                    type="radio"
+                    name="report-for"
+                    value={value}
+                    required
+                  >
+                  </input>
+                </label>
+              ))}
+            </fieldset>
+          </div>
+          <button
+            type="submit"
+            className="report-submit"
+          >
+            Submit Report
+          </button>
+        </form>
       </li>
     );
   }

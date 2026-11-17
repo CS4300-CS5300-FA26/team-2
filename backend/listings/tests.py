@@ -7,10 +7,11 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command  # runs "python manage.py ..." inside a test
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings  # override_settings = pretend a setting has a different value
+from django.utils import timezone
 
 from ai_intelligence.models import CredibilityScore
 
-from .models import Bookmark, Listing, Note
+from .models import Bookmark, Listing, Note, Report
 from .jobdatalake import save_jobs, search_jobs  # Sprint 3: for the import tests
 
 User = get_user_model()
@@ -80,6 +81,26 @@ class FeedApiTests(ApiTestCase):
         Bookmark.objects.create(user=self.other_user, listing=self.listing)
         self.client.force_login(self.user)
         self.assertFalse(self.client.get(FEED).json()["listings"][0]["saved"])
+
+    def test_feed_excludes_listings_reported_by_current_user(self):
+        Report.objects.create(
+            user=self.user.get_username(),
+            time=timezone.now(),
+            listing=self.listing,
+            reportReason="fake",
+        )
+        self.client.force_login(self.user)
+        self.assertEqual(self.titles(FEED), [])
+
+    def test_feed_shows_listings_reported_by_other_users(self):
+        Report.objects.create(
+            user=self.other_user.get_username(),
+            time=timezone.now(),
+            listing=self.listing,
+            reportReason="fake",
+        )
+        self.client.force_login(self.user)
+        self.assertEqual(self.titles(FEED), ["Software Intern"])
 
     def test_save_missing_listing_gives_404(self):
         self.client.force_login(self.user)

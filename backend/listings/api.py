@@ -8,11 +8,17 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models import F
 
-from .models import Bookmark, Listing, Note
+from .models import Bookmark, Listing, Note, Report
+
+from django.utils import timezone   # So that reports record when they were made
 
 # Sprint 3
 # the status names a saved job can have: saved, applied, interviewing, offer, rejected
 STATUSES = [value for value, label in Bookmark.STATUS_CHOICES]
+
+# Sprint 3
+# The reasons that can be given for a listing report
+REPORT_REASONS = {"fake", "inappropriate", "harmful-or-illegal"}
 
 
 # Sprint 3: one note as JSON, including when it was written.
@@ -67,7 +73,9 @@ def feed(request):
     sort_by = request.GET.get("sort_by", "date-desc")
     if sort_by not in SORT_FIELDS:
         return JsonResponse({"detail": "Invalid sort_by."}, status=400)
-    listings = Listing.objects.select_related("score")
+    listings = Listing.objects.select_related("score").exclude(
+        reports__user=request.user.get_username()
+    )
 
     # Filter by score
     if "min_score" in request.GET or "max_score" in request.GET:
@@ -181,3 +189,29 @@ def set_status(request, listing_id):
     bookmark.status = status
     bookmark.save()
     return JsonResponse({"id": listing_id, "status": bookmark.status})
+
+
+# Spring 3
+# US3.4: Add report to database
+@api_login_required
+@require_http_methods(["POST"])
+def report_listing(request, listing_id):
+    # Try to get the listing
+    listing = get_object_or_404(Listing, id=listing_id)
+    
+    try:
+        payload = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"detail": "Invalid JSON."}, status=400)
+    
+    reason = payload.get("reason") if isinstance(payload, dict) else None
+    if not isinstance(reason, str) or reason not in REPORT_REASONS:
+        return JsonResponse({"detail": "Invalid report reason."}, status=400)
+    
+    report = Report.objects.create(
+        user=request.user.get_username(),
+        time=timezone.now(),
+        listing=listing,
+        reportReason=reason,
+    )
+    return JsonResponse({"id": report.id}, status=201)

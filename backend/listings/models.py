@@ -88,7 +88,7 @@ class Report(models.Model):
     # The time this report was made
     time = models.DateTimeField()
     # The time this report was made
-    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="report")
+    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="reports")
     # The reason this report was made
     reportReason = models.CharField(max_length=256)
     

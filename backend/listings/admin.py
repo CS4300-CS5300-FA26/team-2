@@ -7,4 +7,5 @@ admin.site.register(Listing)
 # lets us see and manage saved jobs on the /admin/ page
 admin.site.register(Bookmark)
 
+# lets us see and manage reported jobs on the /admin/ page
 admin.site.register(Report)
