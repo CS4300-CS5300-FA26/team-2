@@ -76,7 +76,7 @@ export function SignupPage() {
     <Shell title="Create your account" subtitle="Step 1 of 3: choose a username and password.">
       <form className="bare" onSubmit={submit}>
         {general && <Alert>{general}</Alert>}
-        <Field label="Username" name="username" autoComplete="username" required autoFocus error={err("username")} hint="Letters, digits and @/./+/-/_ only." />
+        <Field label="Username" name="username" autoComplete="username" required autoFocus error={err("username")} hint="Your username is separate from your real name (you add that next). Letters, digits and @/./+/-/_ only." />
         <Field label="Password" name="password1" type="password" autoComplete="new-password" required error={err("password1")} />
         <Field label="Confirm password" name="password2" type="password" autoComplete="new-password" required error={err("password2")} />
         <Button variant="primary" block type="submit" disabled={busy}>{busy ? "Creating..." : "Continue"}</Button>
@@ -90,8 +90,10 @@ export function ProfilePage() {
   const nav = useNavigate();
   const { user } = useAuth();
   const { submit, busy, err, general } = useAuthForm("/api/auth/signup/profile", (u) => nav(u.email_verified ? "/feed" : "/signup/verify", { replace: true }));
+  // finished accounts can't change their email here (the API refuses it)
+  if (user?.profile_complete && user.email_verified) return <Navigate to="/feed" replace />;
   return (
-    <Shell title="Complete your profile" subtitle="Step 2 of 3: tell us a bit about yourself. This step is required.">
+    <Shell title="Complete your profile" subtitle="Step 2 of 3: your real name, so people who know you can find you. This step is required.">
       <form className="bare" onSubmit={submit}>
         {general && <Alert>{general}</Alert>}
         <Field label="First name" name="first_name" autoComplete="given-name" required defaultValue={user?.first_name} error={err("first_name")} />
@@ -128,6 +130,7 @@ export function VerifyPage() {
         <Button variant="primary" block type="submit" disabled={busy}>{busy ? "Checking..." : "Verify"}</Button>
       </form>
       <p className="muted">No email? <Button variant="ghost" size="sm" onClick={resend}>Resend code</Button></p>
+      <p className="muted">Wrong email? <Link to="/signup/profile">Change it</Link></p>
     </Shell>
   );
 }

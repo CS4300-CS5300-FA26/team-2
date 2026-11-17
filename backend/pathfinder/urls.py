@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
 from pathfinder.health import healthz, livez
+from accounts.api import people_search
 
 
 def api_root(request):
@@ -30,6 +31,8 @@ urlpatterns = [
     path("api/listings/", include("listings.urls")),
     path("api/resumes/", include("resumes.urls")),
     path("api/csrf/", api_csrf),
+    # US1.4: outside /api/auth/ so ProfileStepMiddleware blocks half-signed-up users
+    path("api/people/", people_search),
     path("api/", include("tracking.urls")),
 ]
 

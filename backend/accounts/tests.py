@@ -1,10 +1,15 @@
+import importlib
+import threading
+import unittest
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.apps import apps
+
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.db import IntegrityError, transaction
-from django.test import Client, TestCase, override_settings
+from django.db import IntegrityError, connection, transaction
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.utils import timezone
 
 from .models import EmailVerification
@@ -126,6 +131,58 @@ class SignupStepGuardTests(TestCase):
         self.assertEqual(self.client.get("/api/listings/feed/").status_code, 200)
 
 
+class ProfileStepLockedTests(TestCase):
+    """PR #77 review: once step 2 is done, signup/profile can't change the email."""
+
+    def post(self, path, data):
+        return self.client.post(f"/api/auth/{path}", data, content_type="application/json")
+
+    def setUp(self):
+        self.post("signup", {"username": "newuser", "password1": PW, "password2": PW})
+        self.post("signup/profile", {"first_name": "Ada", "last_name": "L", "email": "ada@example.com"})
+        self.code = EmailVerification.objects.get(user__username="newuser").code
+
+    def assert_email_locked(self):
+        response = self.post("signup/profile", {"first_name": "Ada", "last_name": "L", "email": "evil@example.com"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("already finished", response.json()["errors"]["__all__"][0])
+        self.assertEqual(User.objects.get(username="newuser").email, "ada@example.com")
+
+    def test_fixing_email_on_step_3_sends_new_code(self):
+        profile = {"first_name": "Ada", "last_name": "L", "email": "fixed@example.com"}
+        # within a minute of the last code: refused, nothing changes
+        response = self.post("signup/profile", profile)
+        self.assertIn("Wait a minute", response.json()["errors"]["email"][0])
+        self.assertEqual(User.objects.get(username="newuser").email, "ada@example.com")
+        # later: saved, and the old code stops working
+        EmailVerification.objects.update(sent_at=timezone.now() - timedelta(minutes=2))
+        self.assertFalse(self.post("signup/profile", profile).json()["user"]["email_verified"])
+        self.assertEqual(mail.outbox[-1].to, ["fixed@example.com"])
+        new_code = EmailVerification.objects.get(user__username="newuser").code
+        self.assertIn(new_code, mail.outbox[-1].body)
+        if new_code != self.code:
+            self.assertEqual(self.post("signup/verify", {"code": self.code}).status_code, 400)
+        self.assertEqual(self.post("signup/verify", {"code": new_code}).status_code, 200)
+
+    def test_name_change_on_step_3_keeps_code(self):
+        self.post("signup/profile", {"first_name": "Ada", "last_name": "Lovelace", "email": "ADA@example.com"})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(EmailVerification.objects.get(user__username="newuser").code, self.code)
+
+    def test_verified_user_cannot_change_email(self):
+        self.post("signup/verify", {"code": self.code})
+        self.assert_email_locked()
+        self.assertTrue(self.client.get("/api/auth/me").json()["user"]["email_verified"])
+
+    def test_old_account_without_profile_must_verify_new_email(self):
+        # accounts from before US1.2/US1.3: no row and no profile yet
+        User.objects.create_user(username="old", password=PW)
+        self.client.login(username="old", password=PW)
+        response = self.post("signup/profile", {"first_name": "O", "last_name": "L", "email": "old@example.com"})
+        self.assertFalse(response.json()["user"]["email_verified"])
+        self.assertEqual(mail.outbox[-1].to, ["old@example.com"])
+
+
 class SignupVerifyStepTests(TestCase):
 
     def post(self, path, data):
@@ -241,3 +298,129 @@ class UniqueEmailDatabaseTests(TestCase):
             )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["errors"]["email"], ["An account with this email already exists."])
+
+
+# PR #77 review: two requests at the same moment can't get around the limits.
+# Needs real row locks, so it only runs on PostgreSQL (what CI and prod use).
+@unittest.skipUnless(connection.vendor == "postgresql", "row locks need PostgreSQL")
+class ConcurrentCodeRequestTests(TransactionTestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="newuser", password=PW, first_name="A", last_name="L", email="a@example.com")
+        EmailVerification.objects.create(user=self.user, code="123456", sent_at=timezone.now() - timedelta(minutes=2))
+
+    # sends the same request from many "tabs" at once and returns the status codes
+    def burst(self, path, data, count=10):
+        start = threading.Barrier(count)
+        results = []
+
+        def one():
+            client = Client()
+            client.force_login(self.user)
+            start.wait()
+            try:
+                results.append(client.post(f"/api/auth/{path}", data, content_type="application/json").status_code)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=one) for _ in range(count)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return results
+
+    def test_parallel_wrong_codes_are_all_counted(self):
+        self.burst("signup/verify", {"code": "000000"})
+        self.assertEqual(EmailVerification.objects.get(user=self.user).attempts, 5)
+
+    def test_parallel_resends_send_one_email(self):
+        results = self.burst("signup/resend", {})
+        self.assertEqual(results.count(200), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+
+class DuplicateEmailMigrationTests(TestCase):
+    """PR #77 review: migration 0003 can't fail on emails that differ only by capitals."""
+
+    def test_duplicates_are_cleared_before_index(self):
+        migration = importlib.import_module("accounts.migrations.0003_unique_user_email")
+        with connection.cursor() as cursor:
+            cursor.execute("DROP INDEX accounts_user_email_ci_uniq")
+        first = User.objects.create_user(username="first", password="pw", email="ada@example.com")
+        second = User.objects.create_user(username="second", password="pw", email="ADA@example.com")
+
+        migration.clear_duplicate_emails(apps, None)
+
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertEqual(first.email, "ada@example.com")
+        self.assertEqual(second.email, "")
+        # the second account has to pick and verify a new email
+        self.assertEqual(EmailVerification.objects.get(user=second).code, "")
+        self.assertFalse(EmailVerification.objects.filter(user=first).exists())
+        # and now the index can be created
+        with connection.cursor() as cursor:
+            cursor.execute("CREATE UNIQUE INDEX accounts_user_email_ci_uniq ON auth_user (LOWER(email)) WHERE email <> ''")
+
+
+class UsernameAndRealNameTests(TestCase):
+    """US1.4: a username separate from the real name, both saved, and people can find you by name."""
+
+    def post(self, path, data):
+        return self.client.post(f"/api/auth/{path}", data, content_type="application/json")
+
+    def sign_up(self, username, first, last, email):
+        self.post("signup", {"username": username, "password1": PW, "password2": PW})
+        self.post("signup/profile", {"first_name": first, "last_name": last, "email": email})
+        code = EmailVerification.objects.get(user__username=username).code
+        return self.post("signup/verify", {"code": code}).json()["user"]
+
+    def search(self, q):
+        return self.client.get("/api/people/", {"q": q})
+
+    def test_username_and_real_name_are_both_saved(self):
+        user = self.sign_up("trailblazer", "Ada", "Lovelace", "ada@example.com")
+        self.assertEqual(user["username"], "trailblazer")
+        self.assertEqual((user["first_name"], user["last_name"]), ("Ada", "Lovelace"))
+        # logging in uses the username, not the real name
+        self.post("logout", {})
+        self.assertEqual(self.post("login", {"username": "trailblazer", "password": PW}).status_code, 200)
+
+    def test_username_is_unique_ignoring_capitals(self):
+        User.objects.create_user(username="Trailblazer", password=PW)
+        response = self.post("signup", {"username": "trailblazer", "password1": PW, "password2": PW})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("already exists", response.json()["errors"]["username"][0])
+
+    def test_two_people_can_share_a_real_name(self):
+        self.sign_up("ada1", "Ada", "Lovelace", "ada1@example.com")
+        self.post("logout", {})
+        self.sign_up("ada2", "Ada", "Lovelace", "ada2@example.com")
+        names = [p["username"] for p in self.search("Ada Lovelace").json()["people"]]
+        self.assertEqual(sorted(names), ["ada1", "ada2"])
+
+    def test_find_people_by_real_name(self):
+        User.objects.create_user(username="trailblazer", password=PW, first_name="Ada", last_name="Lovelace", email="ada@example.com")
+        User.objects.create_user(username="grace", password=PW, first_name="Grace", last_name="Hopper", email="g@example.com")
+        self.sign_up("me", "Dom", "I", "me@example.com")
+        for q in ("ada", "LOVELACE", "ada love", "trailblazer"):
+            people = self.search(q).json()["people"]
+            self.assertEqual(people, [{"username": "trailblazer", "first_name": "Ada", "last_name": "Lovelace"}], q)
+        # no email in the results, and short or no-match searches return nothing
+        self.assertNotIn("email", str(self.search("grace").json()))
+        self.assertEqual(self.search("a").json()["people"], [])
+        self.assertEqual(self.search("ada hopper").json()["people"], [])
+        # very long searches are cut down instead of building a huge query
+        self.assertEqual(self.search("ada " * 500).status_code, 200)
+
+    def test_unfinished_accounts_are_hidden(self):
+        User.objects.create_user(username="half", password=PW, first_name="Half", last_name="Done")
+        EmailVerification.objects.create(user=User.objects.get(username="half"), code="123456")
+        self.sign_up("me", "Dom", "I", "me@example.com")
+        self.assertEqual(self.search("half").json()["people"], [])
+
+    def test_search_needs_finished_login(self):
+        self.assertEqual(self.search("ada").status_code, 401)
+        self.post("signup", {"username": "new", "password1": PW, "password2": PW})
+        self.assertEqual(self.search("ada").status_code, 403)
