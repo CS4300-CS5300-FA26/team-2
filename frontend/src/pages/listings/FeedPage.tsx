@@ -94,7 +94,7 @@ function ListingCard({ l, toggle, report }: ListingCardProps) {
 
   // Tie what backend knows to what frontend shows
   const REPORT_OPTIONS: [ReportReason, string][] = [
-    ["fake", "This Listing Seems Fake or a Scam"],
+    ["fake", "This listing seems fake or a scam"],
     ["inappropriate", "This listing is inappropriate"],
     ["harmful-or-illegal", "This listing is for a harmful or illegal job."],
   ]
