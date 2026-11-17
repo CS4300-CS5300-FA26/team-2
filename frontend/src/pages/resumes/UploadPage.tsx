@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "./resumes.css";
-import {ApiError, deleteResume, listResumes, replaceResume, uploadResume, type Resume,} from "./http";
+import {ApiError, deleteResume, listResumes, replaceResume, setDefaultResume, uploadResume, type Resume,} from "./http";
 
 const ALLOWED = [".pdf", ".doc", ".docx"];
 const MAX = 5 * 1024 * 1024;
@@ -117,6 +117,28 @@ export default function UploadPage() {
       setWorkingResumeId(null);
     }
   }
+  async function chooseDefault(resume: Resume) {
+    setDone(null);
+    setError(null);
+    setWorkingResumeId(resume.id);
+
+    try {
+      await setDefaultResume(resume.id);
+      setDone(`${resume.name} is now your default resume`);
+      load();
+    } catch (error) {
+      const apiError = error as ApiError;
+
+      if (apiError.status === 401) {
+        toLogin();
+        return;
+      }
+
+      setError(apiError.message);
+    } finally {
+      setWorkingResumeId(null);
+    }
+  }
   const busy = progress !== null;
   return (
     <div className="resumes-page">
@@ -182,7 +204,16 @@ export default function UploadPage() {
                     <a href={r.url} target="_blank" rel="noopener noreferrer">
                       {r.name}
                     </a>
-                    <span className="muted">Uploaded {new Date(r.uploaded_at).toLocaleString()}</span>
+
+                    {r.is_default && (
+                      <span className="default-badge">
+                        Default
+                      </span>
+                    )}
+
+                    <span className="muted">
+                      Uploaded {new Date(r.uploaded_at).toLocaleString()}
+                    </span>
                   </div>
                   <div className="resume-actions">
                       {workingResumeId === r.id ? (
@@ -199,6 +230,19 @@ export default function UploadPage() {
                         >
                           Get AI feedback
                         </Link>
+                      )}
+
+                      {!r.is_default && (
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={workingResumeId === r.id}
+                          onClick={() => chooseDefault(r)}
+                        >
+                          {workingResumeId === r.id
+                            ? "Working..."
+                            : "Set as default"}
+                        </button>
                       )}
 
                       <label

@@ -18,6 +18,11 @@ urlpatterns = [
         name="replace",
     ),
     path(
+        "<int:resume_id>/default/",
+        api.set_default_resume,
+        name="set_default",
+    ),
+    path(
         "<int:resume_id>/",
         api.delete_resume,
         name="delete",

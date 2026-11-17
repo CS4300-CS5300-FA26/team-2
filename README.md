@@ -92,6 +92,15 @@ Logged-in users can request AI feedback for one of their uploaded resumes
 The feedback page provides simple suggestions about what could be improved
 Users can only request feedback for resumes they own
 
+### US2.5: Default resume
+Logged-in users can upload multiple resumes and choose which one is their default.
+The first uploaded resume becomes the default automatically.
+If the default resume is deleted, another saved resume becomes the new default.
+
+### US2.6: Resume management
+Logged-in users can replace or delete their uploaded resumes.
+Users can only manage resumes that belong to their own account.
+
 ### US3.1: Credibility score
 Each listing can have a credibility score, added on lisitng creation
 
@@ -208,6 +217,7 @@ This section records where and when team members used AI assistance: the tool us
 | Dominick | Claude (Anthropic) | US1.3 email verification: code model and migration, emailed 6-digit code, step 3 verify view, middleware check for unverified users, tests | Used as a starting point; I reviewed, tested, edited, and committed the code |
 | Nicole | Claude (Anthropic) | Real job listings from JobDataLake: Listing fields and migration, API client, import_jobs command, tech-job filter, location and Apply link in React, unit tests, Behave scenario, README | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), tested the real API (and fixed a blocked request by adding a User-Agent header), checked the feed in the browser, and committed the final work |
 | Nicole | Claude (Anthropic) | US4.5 and US4.6: status bar on saved jobs, status filter, and note dates (Bookmark status field and migration, status API, filter, React status bar, unit tests, Behave scenarios, README) | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), chose the status bar design, checked the Saved Jobs page in the browser, and committed the final work |
+| Seth | Codex (OpenAI) | US2.5 default resume model, API, React controls, unit tests, behavior scenario, and troubleshooting | Used for guidance and code suggestions; I reviewed each change, tested the complete feature in the browser, and ran the automated tests |
 | [Add more as needed] | | | |
 
 ### Notes
