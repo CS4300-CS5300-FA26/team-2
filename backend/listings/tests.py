@@ -738,4 +738,3 @@ class ReportTests(ApiTestCase):
             "This user has already made a report for this listing.",
         )
         self.assertEqual(Report.objects.count(), 1)
-        
