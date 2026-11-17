@@ -674,3 +674,67 @@ class JobStatusTests(ApiTestCase):
     def test_invalid_utf8_request_is_refused(self):
         response = self.client.post(self.status_url, b"\xff\xfe\xfa", content_type="application/json")
         self.assertEqual(response.status_code, 400)
+
+
+class ReportTests(ApiTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.susListing = Listing.objects.create(
+            title="Storm Trooper",
+            company="The Dark Side"
+        )
+
+    # Test successful report creation
+    def test_report_creation_success(self):
+        url = f"/api/listings/{self.susListing.id}/report/"
+        response = self.client.post(
+            url,
+            {"reason": "fake"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        report = Report.objects.get()
+        self.assertEqual(report.user, self.user.get_username())
+        self.assertEqual(report.listing, self.susListing)
+        self.assertEqual(report.reportReason, "fake")
+        self.assertIsNotNone(report.time)
+
+    # Test invalid reasons
+    def test_report_invalid_reasons(self):
+        url = f"/api/listings/{self.susListing.id}/report/"
+        for reason in ("", "spam", None):
+            with self.subTest(reason=reason):
+                response = self.client.post(
+                    url,
+                    {"reason": reason},
+                    content_type="application/json",
+                )
+
+                self.assertEqual(response.status_code, 400)
+        self.assertFalse(Report.objects.exists())
+
+    # Test repeat reports
+    def test_only_one_report_per_user(self):
+        url = f"/api/listings/{self.susListing.id}/report/"
+        payload = {"reason": "fake"}
+        first_response = self.client.post(
+            url,
+            payload,
+            content_type="application/json",
+        )
+        second_response = self.client.post(
+            url,
+            payload,
+            content_type="application/json",
+        )
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(
+            second_response.json()["detail"],
+            "This user has already made a report for this listing.",
+        )
+        self.assertEqual(Report.objects.count(), 1)
