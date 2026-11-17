@@ -198,25 +198,25 @@ def set_status(request, listing_id):
 def report_listing(request, listing_id):
     # Try to get the listing
     listing = get_object_or_404(Listing, id=listing_id)
-    
+
     try:
         payload = json.loads(request.body or b"{}")
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"detail": "Invalid JSON."}, status=400)
-    
+
     reason = payload.get("reason") if isinstance(payload, dict) else None
     if not isinstance(reason, str) or reason not in REPORT_REASONS:
         return JsonResponse({"detail": "Invalid report reason."}, status=400)
-    
+
     # Debug
     print(request)
     print(listing.reports)
-    
+
     # Ensure same user cannot use api to make several reports
     # https://stackoverflow.com/a/9371143/31725092
     if any(r.user == request.user.get_username() for r in listing.reports.all()):
         return JsonResponse({"detail": "This user has already made a report for this listing."})
-    
+
     report = Report.objects.create(
         user=request.user.get_username(),
         time=timezone.now(),

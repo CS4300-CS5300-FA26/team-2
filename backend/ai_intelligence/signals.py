@@ -87,7 +87,7 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
                 This is the job listing -> Title: {instance.title}; Company: {instance.company};
                 When created: {instance.created_at};"""}]
         )
-        
+
         answer = response.choices[0].message.content
         try:
             reasoning, score = parse_credibility_response(answer)

@@ -22,7 +22,7 @@ class Listing(models.Model):
     remote_type = models.CharField(max_length=20, blank=True, default="")
     # the company's page for applying to this job
     apply_url = models.URLField(max_length=500, blank=True, default="")
-    
+
     # How the listing shows uo
     def __str__(self):
         return self.title + " at " + self.company
@@ -81,6 +81,7 @@ class Note(models.Model):
     def __str__(self):
         return self.text
 
+
 # Sprint 3
 # Represents a report for a listing. Each report is tied to one listing
 class Report(models.Model):
@@ -92,6 +93,6 @@ class Report(models.Model):
     listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="reports")
     # The reason this report was made
     reportReason = models.CharField(max_length=256)
-    
+
     def __str__(self):
         return f"Report for {self.listing}"
