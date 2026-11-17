@@ -142,7 +142,8 @@ class ResumeUploadTests(TestCase):
             storage.exists(stored_file_name)
         )
 
-        response = self.client.delete(delete_url)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(delete_url)
 
         self.assertEqual(response.status_code, 204)
         self.assertFalse(
@@ -151,6 +152,31 @@ class ResumeUploadTests(TestCase):
         self.assertFalse(
             storage.exists(stored_file_name)
         )
+
+    def test_delete_waits_for_database_commit_before_deleting_file(self):
+        resume = self.create_resume()
+
+        stored_file_name = resume.file.name
+        storage = resume.file.storage
+        delete_url = reverse(
+            "resumes:delete",
+            args=[resume.id],
+        )
+
+        self.sign_in()
+
+        with patch.object(storage, "delete") as delete_file:
+            with self.captureOnCommitCallbacks(execute=False) as callbacks:
+                response = self.client.delete(delete_url)
+
+                self.assertEqual(response.status_code, 204)
+                self.assertFalse(delete_file.called)
+
+            self.assertEqual(len(callbacks), 1)
+
+            callbacks[0]()
+
+            delete_file.assert_called_once_with(stored_file_name)
 
     def test_user_cannot_delete_another_users_resume(self):
         other_user = self.create_user("other-user")
@@ -216,10 +242,11 @@ class ResumeUploadTests(TestCase):
 
         self.sign_in()
 
-        response = self.client.post(
-            replace_url,
-            {"file": replacement_file},
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                replace_url,
+                {"file": replacement_file},
+            )
 
         resume.refresh_from_db()
 
@@ -235,6 +262,40 @@ class ResumeUploadTests(TestCase):
         self.assertTrue(
             storage.exists(resume.file.name)
         )
+
+    def test_replace_waits_for_database_commit_before_deleting_old_file(self):
+        resume = self.create_resume()
+
+        old_file_name = resume.file.name
+        storage = resume.file.storage
+        replace_url = reverse(
+            "resumes:replace",
+            args=[resume.id],
+        )
+
+        replacement_file = SimpleUploadedFile(
+            "updated-resume.pdf",
+            b"%PDF-1.4 updated resume",
+            content_type="application/pdf",
+        )
+
+        self.sign_in()
+
+        with patch.object(storage, "delete") as delete_file:
+            with self.captureOnCommitCallbacks(execute=False) as callbacks:
+                response = self.client.post(
+                    replace_url,
+                    {"file": replacement_file},
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(delete_file.called)
+
+            self.assertEqual(len(callbacks), 1)
+
+            callbacks[0]()
+
+            delete_file.assert_called_once_with(old_file_name)
 
     def test_replacement_requires_a_file(self):
         resume = self.create_resume()
@@ -286,6 +347,44 @@ class ResumeUploadTests(TestCase):
         response = self.client.post(
             replace_url,
             {"file": invalid_file},
+        )
+
+        resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(
+            "file",
+            response.json()["errors"],
+        )
+        self.assertEqual(
+            resume.file.name,
+            old_file_name,
+        )
+        self.assertTrue(
+            storage.exists(old_file_name)
+        )
+
+    def test_oversized_replacement_keeps_original_resume(self):
+        resume = self.create_resume()
+
+        old_file_name = resume.file.name
+        storage = resume.file.storage
+        replace_url = reverse(
+            "resumes:replace",
+            args=[resume.id],
+        )
+
+        oversized_file = SimpleUploadedFile(
+            "large-resume.pdf",
+            b"x" * (MAX_RESUME_SIZE + 1),
+            content_type="application/pdf",
+        )
+
+        self.sign_in()
+
+        response = self.client.post(
+            replace_url,
+            {"file": oversized_file},
         )
 
         resume.refresh_from_db()

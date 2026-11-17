@@ -8,9 +8,11 @@ from datetime import timedelta
 
 from django.contrib.auth import authenticate, login, logout
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -26,6 +28,8 @@ MAX_CODE_ATTEMPTS = 5
 CODE_LIFETIME = timedelta(minutes=10)
 # at most one code email per this long, so nobody can flood an inbox (US1.3)
 RESEND_COOLDOWN = timedelta(minutes=1)
+
+User = get_user_model()
 
 
 def is_profile_complete(user):
@@ -60,6 +64,13 @@ def _errors(form_errors):
 
 def _not_logged_in():
     return JsonResponse({"errors": {"__all__": ["Not logged in."]}}, status=401)
+
+
+# Locks the user's row until the request's transaction ends, so two requests from
+# the same user (e.g. two tabs, or a script) run one after the other. Without it,
+# both could read the same wrong-code count or resend time before either saves.
+def _lock_user(request):
+    return User.objects.select_for_update().get(pk=request.user.pk)
 
 
 @require_GET
@@ -105,12 +116,27 @@ def signup(request):
 
 
 @require_POST
+@transaction.atomic
 def signup_profile(request):
     if not request.user.is_authenticated:
         return _not_logged_in()
-    form = ProfileForm(_body(request), instance=request.user)
+    user = _lock_user(request)
+    # accounts from before US1.3 have no row and count as verified
+    pending = EmailVerification.objects.filter(user=user).first()
+    # Finished accounts can't use this: changing the email here would make a new,
+    # unverified address count as verified.
+    if pending is None and is_profile_complete(user):
+        return _errors({"__all__": ["Your profile is already finished."]})
+    code_sent = bool(pending and pending.code)
+    old_email = user.email  # is_valid() below writes the new values onto user
+    form = ProfileForm(_body(request), instance=user)
     if not form.is_valid():
         return _errors(form.errors)
+    # On step 3 a typo'd email can be fixed, but the old code must stop working,
+    # so a new one goes out, at most once a minute like Resend code.
+    email_changed = form.cleaned_data["email"].lower() != old_email.lower()
+    if code_sent and email_changed and timezone.now() - pending.sent_at < RESEND_COOLDOWN:
+        return _errors({"email": ["Wait a minute before changing your email again."]})
     try:
         with transaction.atomic():
             user = form.save()
@@ -119,14 +145,12 @@ def signup_profile(request):
         # database's unique email index (migration 0003) stopped it
         return _errors({"email": ["An account with this email already exists."]})
 
-    # accounts from before US1.3 have no row and count as verified
-    pending = EmailVerification.objects.filter(user=user).first()
-    if pending is not None:
-        if settings.EMAIL_VERIFICATION:
+    if settings.EMAIL_VERIFICATION:
+        if not code_sent or email_changed:
             # next step: confirm the email with a code (US1.3)
             send_verification_code(user)
-        else:
-            pending.delete()
+    elif pending is not None:
+        pending.delete()
     return JsonResponse({"user": _user_json(user)})
 
 
@@ -153,9 +177,11 @@ def send_verification_code(user):
 # Step 3 of sign-up (US1.3): the user sends the code from their email.
 # The account only counts as activated once the right code is entered.
 @require_POST
+@transaction.atomic
 def signup_verify(request):
     if not request.user.is_authenticated:
         return _not_logged_in()
+    _lock_user(request)
     pending = EmailVerification.objects.filter(user=request.user).first()
     # nothing to verify (already done)
     if pending is None:
@@ -187,12 +213,36 @@ def signup_verify(request):
 
 # The "Resend code" button on step 3 (US1.3).
 @require_POST
+@transaction.atomic
 def signup_resend(request):
     if not request.user.is_authenticated:
         return _not_logged_in()
+    _lock_user(request)
     pending = EmailVerification.objects.filter(user=request.user).first()
     if pending is None or not pending.code:
         return _errors({"__all__": ["There is no code to resend."]})
     if not send_verification_code(request.user):
         return JsonResponse({"detail": "We just sent you a code. Wait a minute before asking for another."}, status=429)
     return JsonResponse({"detail": "We emailed you a new code."})
+
+
+# US1.4: find people by their real name (or username). Only finished accounts show up,
+# and only the username and name are shared, never the email.
+@require_GET
+def people_search(request):
+    if not request.user.is_authenticated:
+        return _not_logged_in()
+    # capped so one request can't build a huge query
+    words = request.GET.get("q", "")[:100].split()[:5]
+    if not words or len(" ".join(words)) < 2:
+        return JsonResponse({"people": []})
+    people = User.objects.filter(is_active=True, emailverification__isnull=True)
+    # every word has to match the first name, last name or username ("ada love" finds Ada Lovelace)
+    for word in words:
+        people = people.filter(
+            Q(first_name__icontains=word) | Q(last_name__icontains=word) | Q(username__icontains=word)
+        )
+    people = people.order_by("last_name", "first_name", "username")[:20]
+    return JsonResponse({"people": [
+        {"username": p.username, "first_name": p.first_name, "last_name": p.last_name} for p in people
+    ]})
