@@ -28,7 +28,7 @@ Add docs as sprints produce them. Keep diagrams as source (Mermaid/PlantUML/.dra
    - `python manage.py migrate`
    - `python manage.py createsuperuser`
 5. Start the server: `python manage.py runserver`
-6. In a second terminal, run npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
+6. In a second terminal, cd to frontend, run npm ci (if first time running), then npm run dev, and visit http://localhost:5173/
 7. Go to http://localhost:8000/admin and log in with superuser to add listings
 8. Open any of the pages below
 
