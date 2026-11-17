@@ -82,6 +82,7 @@ class Note(models.Model):
         return self.text
 
 # Sprint 3
+# Represents a report for a listing. Each report is tied to one listing
 class Report(models.Model):
     # The user that made this report
     user = models.CharField(max_length=256)

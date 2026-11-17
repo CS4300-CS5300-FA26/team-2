@@ -64,6 +64,7 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
     '''
 
     # TODO: delegate this to a background task, perhaps with Celery or something
+    # TODO: Upon a report object being created, have the AI update its score
 
     if not created or raw:
         return
@@ -84,9 +85,9 @@ def create_credscore(sender, instance, created, raw=False, **kwargs):
                 Give your response in this format, as the response will be spliced in code, no other fluff:
                 'Reasons: [256 or less characters of 1-5 word reasons]; Final Score: [number score 1-100]'.
                 This is the job listing -> Title: {instance.title}; Company: {instance.company};
-                When created: {instance.created_at}"""}]
+                When created: {instance.created_at};"""}]
         )
-
+        
         answer = response.choices[0].message.content
         try:
             reasoning, score = parse_credibility_response(answer)

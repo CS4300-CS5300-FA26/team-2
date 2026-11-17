@@ -42,6 +42,7 @@ export default function FeedPage() {
     }
   }
 
+  // Attempt to report a listing
   async function reportListing(id: number, reason: string): Promise<boolean> {
     setError("");
     try {
@@ -73,6 +74,7 @@ export default function FeedPage() {
   );
 }
 
+// Only way I can have multiple parameters in the ListingCard component :sob:
 interface ListingCardProps {
   l: Listing,
   toggle: Function,
@@ -86,16 +88,18 @@ tbf this does also help with SRP
 */
 function ListingCard({ l, toggle, report }: ListingCardProps) {
 
-  // Change card if being reported
+  // Change card in reporting stages
   const [isBeingReported, setIsBeingReported] = useState(false);
   const [isReported, setIsReported] = useState(false);
 
+  // Tie what backend knows to what frontend shows
   const REPORT_OPTIONS: [ReportReason, string][] = [
     ["fake", "This Listing Seems Fake or a Scam"],
     ["inappropriate", "This listing is inappropriate"],
     ["harmful-or-illegal", "This listing is for a harmful or illegal job."],
   ]
 
+  // Shows after submit report button is pressed
   if (isReported) {
     return (
       <li key={l.id} className="card listing">
@@ -103,6 +107,7 @@ function ListingCard({ l, toggle, report }: ListingCardProps) {
       </li>
     )
   }
+  // Shows normally
   else if (!isBeingReported) {
     return (
       <li key={l.id} className="card listing">
@@ -142,6 +147,7 @@ function ListingCard({ l, toggle, report }: ListingCardProps) {
       </li>
     );
   }
+  // Shows when flag button is pressed
   else if (isBeingReported) {
     return (
       <li key={l.id} className="card listing">
