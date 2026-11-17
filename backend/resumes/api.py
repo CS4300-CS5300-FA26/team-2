@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
+from django.db import transaction
 
 from .forms import ResumeUploadForm
 from .models import Resume
@@ -74,8 +75,15 @@ def delete_resume(request, resume_id):
             status=404,
         )
 
-    resume.file.delete(save=False)
+    file_name = resume.file.name
+    storage = resume.file.storage
+
     resume.delete()
+
+    def delete_file():
+        storage.delete(file_name)
+
+    transaction.on_commit(delete_file)
 
     return HttpResponse(status=204)
 
@@ -132,8 +140,9 @@ def replace_resume(request, resume_id):
     updated_resume = form.save()
 
     if old_file_name != updated_resume.file.name:
-        storage.delete(old_file_name)
-
+        def delete_old_file():
+            storage.delete(old_file_name)
+        transaction.on_commit(delete_old_file)
     return JsonResponse(
         serialize(updated_resume),
         status=200,
