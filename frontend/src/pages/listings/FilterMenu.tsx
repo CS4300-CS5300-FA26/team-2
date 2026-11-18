@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 
 export type SortBy = "date-desc" | "date-asc" | "score-desc" | "score-asc";
-export type FeedFilters = { sortBy: SortBy; minScore: number; maxScore: number };
+export type FeedFilters = { sortBy: SortBy; minScore: number; maxScore: number; location: string };
 
-export const DEFAULT_FILTERS: FeedFilters = { sortBy: "date-desc", minScore: 0, maxScore: 100 };
+export const DEFAULT_FILTERS: FeedFilters = { sortBy: "date-desc", minScore: 0, maxScore: 100, location: "" };
 
 const SORT_OPTIONS: [SortBy, string][] = [
   ["date-desc", "Date posted (desc)"],
@@ -86,6 +86,16 @@ export default function FilterMenu({ onApply, onReset, active }: Props) {
               <output>{draft.minScore}</output>
               <output>{draft.maxScore}</output>
             </div>
+
+            <span className="filter-legend">Only show listings in location:</span>
+            <input
+              type="text"
+              aria-label="Location"
+              className="location-input"
+              value={draft.location}
+              onChange={(e) => setDraft({ ...draft, location: e.target.value})}
+            />
+
           </div>
 
           <div className="filter-actions">
