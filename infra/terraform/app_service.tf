@@ -86,6 +86,19 @@ resource "azurerm_linux_web_app" "backend" {
     # is a no-op until the secret below is actually set.
     SENTRY_DSN = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=SENTRY-DSN)"
 
+    # Azure Communication Services Email (acs_email.tf): prod.py switches to the ACS email
+    # backend when the endpoint is set. Endpoint format is https://<resource name>.<data location>.communication.azure.com
+    ACS_EMAIL_ENDPOINT = "https://${azurerm_communication_service.main.name}.unitedstates.communication.azure.com"
+    DEFAULT_FROM_EMAIL = "DoNotReply@${azurerm_email_communication_service_domain.managed.mail_from_sender_domain}"
+
+    # Bearer token for POST /api/internal/run-alerts/ (alerts-cron workflow). Endpoint stays disabled until the secret exists.
+    ALERTS_CRON_TOKEN = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=ALERTS-CRON-TOKEN)"
+
+    # `manage.py import_jobs` (JobDataLake) and AI credibility scoring (OpenAI). These were applied by hand
+    # earlier; keeping them here stops a terraform apply from removing them.
+    JOBDATALAKE_API_KEY = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=JOBDATALAKE-API-KEY)"
+    OPENAI_API_KEY      = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=OPENAI-API-KEY)"
+
     # Media storage account/container for prod.py's AzureStorage backend.
     # Not secrets (auth is managed identity, not a key), so plain app
     # settings rather than Key Vault references.
