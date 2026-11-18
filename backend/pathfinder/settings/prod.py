@@ -25,7 +25,13 @@ CSRF_COOKIE_SECURE = True
 
 # Without SMTP config, alert emails are written to the server log instead of
 # sent, so a deploy missing these variables still boots. In-app alerts are unaffected.
-if env("EMAIL_HOST", default=""):
+# Azure Communication Services Email (managed identity, no key) wins when configured;
+# infra/terraform/acs_email.tf sets both ACS_EMAIL_ENDPOINT and DEFAULT_FROM_EMAIL.
+ACS_EMAIL_ENDPOINT = env("ACS_EMAIL_ENDPOINT", default="")
+if ACS_EMAIL_ENDPOINT.startswith("https://"):
+    EMAIL_BACKEND = "pathfinder.acs_email.AcsEmailBackend"
+    DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+elif env("EMAIL_HOST", default=""):
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = env("EMAIL_HOST")
     EMAIL_PORT = env.int("EMAIL_PORT", default=587)

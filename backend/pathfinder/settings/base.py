@@ -110,3 +110,7 @@ EMAIL_VERIFICATION = True
 # Sprint 3: key for the JobDataLake job API (python manage.py import_jobs).
 # Put it in backend/.env locally and in Azure's app settings. Never commit it.
 JOBDATALAKE_API_KEY = env("JOBDATALAKE_API_KEY", default="")
+
+# Shared secret for POST /api/internal/run-alerts/ (called hourly by the alerts-cron GitHub
+# workflow). Empty or an unresolved Key Vault reference means the endpoint is disabled.
+ALERTS_CRON_TOKEN = env("ALERTS_CRON_TOKEN", default="")
