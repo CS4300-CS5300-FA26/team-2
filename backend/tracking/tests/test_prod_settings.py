@@ -37,3 +37,11 @@ class ProdEmailSettingsTests(SimpleTestCase):
             "EMAIL_HOST_PASSWORD": "p",
         })
         self.assertIn("smtp.EmailBackend", result.stdout)
+
+    def test_acs_endpoint_uses_acs_backend_even_if_smtp_is_set(self):
+        result = self._prod_email_backend({
+            "ACS_EMAIL_ENDPOINT": "https://x.unitedstates.communication.azure.com",
+            "DEFAULT_FROM_EMAIL": "DoNotReply@x.azurecomm.net",
+            "EMAIL_HOST": "smtp.example.com",
+        })
+        self.assertIn("acs_email.AcsEmailBackend", result.stdout)
