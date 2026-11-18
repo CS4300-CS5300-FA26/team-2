@@ -11,4 +11,6 @@ urlpatterns = [
     path("notes/<int:note_id>/", api.delete_note),
     # Sprint 3 (US4.5): set the status of a saved job
     path("<int:listing_id>/status/", api.set_status),
+    # Sprint 3 (US3.4): Create report
+    path("<int:listing_id>/report/", api.report_listing),
 ]

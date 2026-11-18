@@ -80,3 +80,19 @@ class Note(models.Model):
 
     def __str__(self):
         return self.text
+
+
+# Sprint 3
+# Represents a report for a listing. Each report is tied to one listing
+class Report(models.Model):
+    # The user that made this report
+    user = models.CharField(max_length=256)
+    # The time this report was made
+    time = models.DateTimeField()
+    # The time this report was made
+    listing = models.ForeignKey(Listing, on_delete=models.CASCADE, related_name="reports")
+    # The reason this report was made
+    reportReason = models.CharField(max_length=256)
+
+    def __str__(self):
+        return f"Report for {self.listing}"

@@ -153,3 +153,6 @@ export const STATUSES = [
 export function formatDate(iso: string) {
   return new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
+
+// Sprint 3: The reasons for reporting
+export type ReportReason = "fake" | "inappropriate" | "harmful-or-illegal"
