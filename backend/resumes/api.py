@@ -7,9 +7,9 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .forms import ResumeUploadForm
+from .forms import ResumeUploadForm, ResumeFieldsForm
 from .models import Resume
-from .services import ResumeFeedbackError, get_resume_feedback
+from .services import ResumeFeedbackError, get_resume_feedback, ResumeParseError, parse_resume_fields
 
 
 def api_login_required(view):
@@ -33,7 +33,93 @@ def serialize(resume):
         "url": resume.file.url,
         "uploaded_at": resume.uploaded_at.isoformat(),
         "is_default": resume.is_default,
+        "skills": resume.skills,
+        "experience": resume.experience,
+        "education": resume.education,
     }
+
+
+@api_login_required
+@require_POST
+def update_resume_fields(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    form = ResumeFieldsForm(
+        request.POST,
+        instance=resume,
+    )
+
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "detail": "Resume fields could not be saved.",
+                "errors": {
+                    field: list(errors)
+                    for field, errors in form.errors.items()
+                },
+            },
+            status=400,
+        )
+
+    updated_resume = form.save()
+
+    return JsonResponse(
+        serialize(updated_resume),
+        status=200,
+    )
+
+
+@api_login_required
+@require_POST
+def parse_resume(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    try:
+        fields = parse_resume_fields(resume)
+    except ResumeParseError:
+        return JsonResponse(
+            {
+                "detail": (
+                    "Resume parsing is unavailable right now. "
+                    "Please try again later."
+                )
+            },
+            status=503,
+        )
+
+    resume.skills = fields["skills"]
+    resume.experience = fields["experience"]
+    resume.education = fields["education"]
+    resume.save(
+        update_fields=[
+            "skills",
+            "experience",
+            "education",
+        ]
+    )
+
+    return JsonResponse(
+        serialize(resume),
+        status=200,
+    )
 
 
 @api_login_required

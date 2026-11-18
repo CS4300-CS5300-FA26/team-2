@@ -232,6 +232,13 @@ export default function UploadPage() {
                         </Link>
                       )}
 
+                      <Link
+                        className="btn"
+                        to={`/resumes/${r.id}/profile`}
+                      >
+                        Parse and edit
+                      </Link>
+
                       {!r.is_default && (
                         <button
                           type="button"
