@@ -3,13 +3,13 @@ from accounts.api import is_profile_complete
 from functools import wraps
 from pathlib import Path
 
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
-from django.db import transaction
 
-from .forms import ResumeUploadForm
+from .forms import ResumeUploadForm, ResumeFieldsForm
 from .models import Resume
-from .services import ResumeFeedbackError, get_resume_feedback
+from .services import ResumeFeedbackError, get_resume_feedback, ResumeParseError, parse_resume_fields
 
 
 def api_login_required(view):
@@ -32,7 +32,94 @@ def serialize(resume):
         "name": Path(resume.file.name).name,
         "url": resume.file.url,
         "uploaded_at": resume.uploaded_at.isoformat(),
+        "is_default": resume.is_default,
+        "skills": resume.skills,
+        "experience": resume.experience,
+        "education": resume.education,
     }
+
+
+@api_login_required
+@require_POST
+def update_resume_fields(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    form = ResumeFieldsForm(
+        request.POST,
+        instance=resume,
+    )
+
+    if not form.is_valid():
+        return JsonResponse(
+            {
+                "detail": "Resume fields could not be saved.",
+                "errors": {
+                    field: list(errors)
+                    for field, errors in form.errors.items()
+                },
+            },
+            status=400,
+        )
+
+    updated_resume = form.save()
+
+    return JsonResponse(
+        serialize(updated_resume),
+        status=200,
+    )
+
+
+@api_login_required
+@require_POST
+def parse_resume(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    try:
+        fields = parse_resume_fields(resume)
+    except ResumeParseError:
+        return JsonResponse(
+            {
+                "detail": (
+                    "Resume parsing is unavailable right now. "
+                    "Please try again later."
+                )
+            },
+            status=503,
+        )
+
+    resume.skills = fields["skills"]
+    resume.experience = fields["experience"]
+    resume.education = fields["education"]
+    resume.save(
+        update_fields=[
+            "skills",
+            "experience",
+            "education",
+        ]
+    )
+
+    return JsonResponse(
+        serialize(resume),
+        status=200,
+    )
 
 
 @api_login_required
@@ -51,11 +138,42 @@ def resumes(request):
             )
         resume = form.save(commit=False)
         resume.owner = request.user  # never trust the client for ownership
+        resume.is_default = not request.user.resumes.exists()
         resume.save()
         return JsonResponse(serialize(resume), status=201)
 
     items = request.user.resumes.order_by("-uploaded_at")
     return JsonResponse({"results": [serialize(r) for r in items]})
+
+
+@api_login_required
+@require_POST
+def set_default_resume(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    with transaction.atomic():
+        request.user.resumes.filter(
+            is_default=True,
+        ).update(
+            is_default=False,
+        )
+
+        resume.is_default = True
+        resume.save(update_fields=["is_default"])
+
+    return JsonResponse(
+        serialize(resume),
+        status=200,
+    )
 
 
 @api_login_required
@@ -77,8 +195,20 @@ def delete_resume(request, resume_id):
 
     file_name = resume.file.name
     storage = resume.file.storage
+    was_default = resume.is_default
 
-    resume.delete()
+    with transaction.atomic():
+        resume.delete()
+
+        if was_default:
+            next_resume = request.user.resumes.order_by(
+                "-uploaded_at",
+                "-id",
+            ).first()
+
+            if next_resume is not None:
+                next_resume.is_default = True
+                next_resume.save(update_fields=["is_default"])
 
     def delete_file():
         storage.delete(file_name)
