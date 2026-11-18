@@ -47,3 +47,14 @@
 .resumes-page .btn-danger:hover {
   background: #b91c1c;
 }
+
+.default-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.8rem;
+  font-weight: 700;
+}

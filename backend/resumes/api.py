@@ -3,9 +3,9 @@ from accounts.api import is_profile_complete
 from functools import wraps
 from pathlib import Path
 
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_POST
-from django.db import transaction
 
 from .forms import ResumeUploadForm
 from .models import Resume
@@ -32,6 +32,7 @@ def serialize(resume):
         "name": Path(resume.file.name).name,
         "url": resume.file.url,
         "uploaded_at": resume.uploaded_at.isoformat(),
+        "is_default": resume.is_default,
     }
 
 
@@ -51,11 +52,42 @@ def resumes(request):
             )
         resume = form.save(commit=False)
         resume.owner = request.user  # never trust the client for ownership
+        resume.is_default = not request.user.resumes.exists()
         resume.save()
         return JsonResponse(serialize(resume), status=201)
 
     items = request.user.resumes.order_by("-uploaded_at")
     return JsonResponse({"results": [serialize(r) for r in items]})
+
+
+@api_login_required
+@require_POST
+def set_default_resume(request, resume_id):
+    resume = Resume.objects.filter(
+        id=resume_id,
+        owner=request.user,
+    ).first()
+
+    if resume is None:
+        return JsonResponse(
+            {"detail": "Not found."},
+            status=404,
+        )
+
+    with transaction.atomic():
+        request.user.resumes.filter(
+            is_default=True,
+        ).update(
+            is_default=False,
+        )
+
+        resume.is_default = True
+        resume.save(update_fields=["is_default"])
+
+    return JsonResponse(
+        serialize(resume),
+        status=200,
+    )
 
 
 @api_login_required
@@ -77,8 +109,20 @@ def delete_resume(request, resume_id):
 
     file_name = resume.file.name
     storage = resume.file.storage
+    was_default = resume.is_default
 
-    resume.delete()
+    with transaction.atomic():
+        resume.delete()
+
+        if was_default:
+            next_resume = request.user.resumes.order_by(
+                "-uploaded_at",
+                "-id",
+            ).first()
+
+            if next_resume is not None:
+                next_resume.is_default = True
+                next_resume.save(update_fields=["is_default"])
 
     def delete_file():
         storage.delete(file_name)
