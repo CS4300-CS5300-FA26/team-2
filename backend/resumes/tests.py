@@ -68,6 +68,162 @@ class ResumeUploadTests(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_resume_stores_editable_profile_fields(self):
+        resume = Resume.objects.create(
+            owner=self.user,
+            file=SimpleUploadedFile(
+                "parsed-resume.pdf",
+                b"%PDF-1.4 parsed resume",
+                content_type="application/pdf",
+            ),
+            skills="Python, Django",
+            experience="Built a job search project",
+            education="Software engineering student",
+        )
+
+        self.assertEqual(resume.skills, "Python, Django")
+        self.assertEqual(
+            resume.experience,
+            "Built a job search project",
+        )
+        self.assertEqual(
+            resume.education,
+            "Software engineering student",
+        )
+
+    @patch("resumes.services.OpenAI")
+    def test_user_can_parse_resume_into_editable_fields(
+        self,
+        openai_class,
+    ):
+        resume = self.create_resume(
+            filename="resume-to-parse.pdf",
+        )
+
+        fake_response = MagicMock()
+        fake_response.output_text = (
+            '{"skills": "Python, Django", '
+            '"experience": "Built a job search project", '
+            '"education": "Software engineering student"}'
+        )
+        openai_class.return_value.responses.create.return_value = (
+            fake_response
+        )
+
+        self.sign_in()
+
+        parse_url = reverse(
+            "resumes:parse",
+            args=[resume.id],
+        )
+
+        response = self.client.post(parse_url)
+
+        resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resume.skills, "Python, Django")
+        self.assertEqual(
+            resume.experience,
+            "Built a job search project",
+        )
+        self.assertEqual(
+            resume.education,
+            "Software engineering student",
+        )
+        self.assertEqual(
+            response.json()["skills"],
+            "Python, Django",
+        )
+
+    def test_user_can_edit_parsed_resume_fields(self):
+        resume = self.create_resume(
+            filename="editable-resume.pdf",
+        )
+        resume.skills = "Old skills"
+        resume.experience = "Old experience"
+        resume.education = "Old education"
+        resume.save(
+            update_fields=[
+                "skills",
+                "experience",
+                "education",
+            ]
+        )
+
+        self.sign_in()
+
+        fields_url = reverse(
+            "resumes:update_fields",
+            args=[resume.id],
+        )
+
+        response = self.client.post(
+            fields_url,
+            {
+                "skills": "Python, Django, Git",
+                "experience": "Built and tested Pathfinder",
+                "education": "Software engineering student",
+            },
+        )
+
+        resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            resume.skills,
+            "Python, Django, Git",
+        )
+        self.assertEqual(
+            resume.experience,
+            "Built and tested Pathfinder",
+        )
+        self.assertEqual(
+            resume.education,
+            "Software engineering student",
+        )
+
+    @patch("resumes.api.parse_resume_fields")
+    def test_user_cannot_parse_or_edit_another_users_resume(
+        self,
+        parse_function,
+    ):
+        other_user = self.create_user("parse-other-user")
+        other_resume = self.create_resume(
+            owner=other_user,
+            filename="private-resume.pdf",
+        )
+
+        self.sign_in()
+
+        parse_url = reverse(
+            "resumes:parse",
+            args=[other_resume.id],
+        )
+        fields_url = reverse(
+            "resumes:update_fields",
+            args=[other_resume.id],
+        )
+
+        parse_response = self.client.post(parse_url)
+        fields_response = self.client.post(
+            fields_url,
+            {
+                "skills": "Changed skills",
+                "experience": "Changed experience",
+                "education": "Changed education",
+            },
+        )
+
+        other_resume.refresh_from_db()
+
+        self.assertEqual(parse_response.status_code, 404)
+        self.assertEqual(fields_response.status_code, 404)
+        self.assertEqual(other_resume.skills, "")
+        self.assertEqual(other_resume.experience, "")
+        self.assertEqual(other_resume.education, "")
+        parse_function.assert_not_called()
+
     def test_pdf_upload_sets_the_logged_in_user_as_owner(self):
         self.sign_in()
 
@@ -84,6 +240,107 @@ class ResumeUploadTests(TestCase):
         self.assertTrue(response.json()["name"].startswith("resume"))
         listed = self.client.get(self.url).json()["results"]
         self.assertEqual([r["id"] for r in listed], [resume.id])
+
+    def test_first_uploaded_resume_becomes_default(self):
+        self.sign_in()
+
+        response = self.post_upload(
+            "first-resume.pdf",
+            b"%PDF-1.4 first resume",
+            "application/pdf",
+        )
+
+        resume = Resume.objects.get()
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(resume.is_default)
+        self.assertTrue(response.json()["is_default"])
+
+    def test_additional_resume_does_not_replace_default(self):
+        self.sign_in()
+
+        self.post_upload(
+            "first-resume.pdf",
+            b"%PDF-1.4 first resume",
+            "application/pdf",
+        )
+
+        response = self.post_upload(
+            "second-resume.pdf",
+            b"%PDF-1.4 second resume",
+            "application/pdf",
+        )
+
+        first_resume, second_resume = Resume.objects.order_by("id")
+
+        self.assertTrue(first_resume.is_default)
+        self.assertFalse(second_resume.is_default)
+        self.assertFalse(response.json()["is_default"])
+
+    def test_user_can_set_another_resume_as_default(self):
+        first_resume = self.create_resume(
+            filename="first-resume.pdf",
+        )
+        first_resume.is_default = True
+        first_resume.save(update_fields=["is_default"])
+
+        second_resume = self.create_resume(
+            filename="second-resume.pdf",
+        )
+
+        self.sign_in()
+
+        set_default_url = reverse(
+            "resumes:set_default",
+            args=[second_resume.id],
+        )
+
+        response = self.client.post(set_default_url)
+
+        first_resume.refresh_from_db()
+        second_resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(first_resume.is_default)
+        self.assertTrue(second_resume.is_default)
+        self.assertTrue(response.json()["is_default"])
+
+    def test_user_cannot_set_another_users_resume_as_default(self):
+        other_user = self.create_user("default-other-user")
+        other_resume = self.create_resume(
+            owner=other_user,
+            filename="other-resume.pdf",
+        )
+        other_resume.is_default = True
+        other_resume.save(update_fields=["is_default"])
+
+        self.sign_in()
+
+        set_default_url = reverse(
+            "resumes:set_default",
+            args=[other_resume.id],
+        )
+
+        response = self.client.post(set_default_url)
+
+        other_resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(other_resume.is_default)
+
+    def test_setting_default_requires_login(self):
+        resume = self.create_resume()
+        set_default_url = reverse(
+            "resumes:set_default",
+            args=[resume.id],
+        )
+
+        response = self.client.post(set_default_url)
+
+        resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 401)
+        self.assertFalse(resume.is_default)
 
     def test_invalid_uploads_are_rejected_and_not_saved(self):
         self.sign_in()
@@ -177,6 +434,32 @@ class ResumeUploadTests(TestCase):
             callbacks[0]()
 
             delete_file.assert_called_once_with(stored_file_name)
+
+    def test_deleting_default_resume_promotes_another_resume(self):
+        default_resume = self.create_resume(
+            filename="default-resume.pdf",
+        )
+        default_resume.is_default = True
+        default_resume.save(update_fields=["is_default"])
+
+        remaining_resume = self.create_resume(
+            filename="remaining-resume.pdf",
+        )
+
+        delete_url = reverse(
+            "resumes:delete",
+            args=[default_resume.id],
+        )
+
+        self.sign_in()
+
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(delete_url)
+
+        remaining_resume.refresh_from_db()
+
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(remaining_resume.is_default)
 
     def test_user_cannot_delete_another_users_resume(self):
         other_user = self.create_user("other-user")

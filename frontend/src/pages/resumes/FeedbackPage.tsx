@@ -25,7 +25,12 @@ export default function FeedbackPage() {
 
   return (
     <div className="resumes-page">
-      <Link to="/resumes/upload">&larr; Back to your resumes</Link>
+      <Link
+        className="btn"
+        to="/resumes/upload"
+      >
+        &larr; Back to your resumes
+      </Link>
       <section className="card">
         <h1>AI resume feedback</h1>
         {data && <p className="muted">Feedback for {data.resume.name}</p>}

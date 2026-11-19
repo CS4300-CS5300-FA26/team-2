@@ -61,6 +61,10 @@ export interface Resume {
   name: string;
   url: string;
   uploaded_at: string;
+  is_default: boolean;
+  skills: string;
+  experience: string;
+  education: string;
 }
 export interface Feedback {
   resume: Resume;
@@ -70,6 +74,26 @@ export interface Feedback {
 
 export const listResumes = () => call<{ results: Resume[] }>("GET", "/api/resumes/");
 export const requestFeedback = (id: number) => call<Feedback>("POST", `/api/resumes/${id}/feedback/`);
+export const setDefaultResume = (id: number) => call<Resume>("POST", `/api/resumes/${id}/default/`);
+export const parseResume = (id: number) => call<Resume>("POST", `/api/resumes/${id}/parse/`);
+
+export function updateResumeFields(
+  id: number,
+  skills: string,
+  experience: string,
+  education: string,
+) {
+  const formData = new FormData();
+  formData.append("skills", skills);
+  formData.append("experience", experience);
+  formData.append("education", education);
+
+  return call<Resume>(
+    "POST",
+    `/api/resumes/${id}/fields/`,
+    formData,
+  );
+}
 export function uploadResume(file: File, onProgress: (pct: number) => void) {
   const fd = new FormData();
   fd.append("file", file);

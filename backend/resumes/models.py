@@ -26,6 +26,10 @@ class Resume(models.Model):
     # Stores the uploaded file.
     # Django will save uploaded files inside MEDIA_ROOT/resumes/
     file = models.FileField(upload_to="resumes/")
+    is_default = models.BooleanField(default=False)
+    skills = models.TextField(blank=True, default="")
+    experience = models.TextField(blank=True, default="")
+    education = models.TextField(blank=True, default="")
 
     # Automatically stores the date and time when this resume was created
     uploaded_at = models.DateTimeField(auto_now_add=True)

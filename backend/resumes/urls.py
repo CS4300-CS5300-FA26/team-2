@@ -13,9 +13,24 @@ urlpatterns = [
         name="feedback",
     ),
     path(
+        "<int:resume_id>/parse/",
+        api.parse_resume,
+        name="parse",
+    ),
+    path(
+        "<int:resume_id>/fields/",
+        api.update_resume_fields,
+        name="update_fields",
+    ),
+    path(
         "<int:resume_id>/replace/",
         api.replace_resume,
         name="replace",
+    ),
+    path(
+        "<int:resume_id>/default/",
+        api.set_default_resume,
+        name="set_default",
     ),
     path(
         "<int:resume_id>/",

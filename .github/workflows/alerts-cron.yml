@@ -1,0 +1,22 @@
+name: Run job alerts
+
+# App Service has no cron, so this calls the backend's alert-matching endpoint
+# (tracking/views.py run_alerts) every hour. Daily digests go out on the hour that
+# matches each alert's digest_time (UTC).
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run-alerts:
+    name: Match alerts and send emails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call run-alerts endpoint
+        env:
+          ALERTS_CRON_TOKEN: ${{ secrets.ALERTS_CRON_TOKEN }}
+        run: |
+          curl --fail --show-error --silent --max-time 200 --retry 2 --retry-delay 20 \
+            -X POST -H "Authorization: Bearer $ALERTS_CRON_TOKEN" \
+            https://app-pathfinder-prod-api.azurewebsites.net/api/internal/run-alerts/

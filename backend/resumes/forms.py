@@ -61,3 +61,13 @@ class ResumeUploadForm(forms.ModelForm):
 
         # Returning the file means it passed validation
         return uploaded_file
+
+
+class ResumeFieldsForm(forms.ModelForm):
+    class Meta:
+        model = Resume
+        fields = (
+            "skills",
+            "experience",
+            "education",
+        )
