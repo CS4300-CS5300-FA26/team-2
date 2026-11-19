@@ -18,6 +18,7 @@ export default function FeedPage() {
           sort_by: filters.sortBy,
           min_score: String(filters.minScore),
           max_score: String(filters.maxScore),
+          location: filters.location.trim(),
         }).toString()
       : "";
     setError("");

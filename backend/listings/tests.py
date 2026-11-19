@@ -46,6 +46,25 @@ class FeedApiTests(ApiTestCase):
         item = response.json()["listings"][0]
         self.assertEqual((item["title"], item["company"]), ("Software Intern", "Lockheed"))
 
+    def test_location_filter_matches_partial_text_and_ignores_blank(self):
+        self.listing.location = "Denver, CO; Remote"
+        self.listing.save()
+        Listing.objects.create(
+            title="Seattle Intern",
+            company="Example",
+            location="Seattle, WA",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(FEED, {"location": " denVER "})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [job["title"] for job in response.json()["listings"]],
+            ["Software Intern"],
+        )
+        self.assertEqual(len(self.client.get(FEED, {"location": " "}).json()["listings"]), 2)
+
     def test_save_bookmark(self):
         self.client.force_login(self.user)
         response = self.client.post(self.save_url)

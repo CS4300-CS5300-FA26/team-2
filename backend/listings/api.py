@@ -77,7 +77,7 @@ def feed(request):
         reports__user=request.user.get_username()
     )
 
-    # Filter by score
+    # Filter by score and location
     if "min_score" in request.GET or "max_score" in request.GET:
         try:
             min_score = int(request.GET.get("min_score", 0))
@@ -89,6 +89,9 @@ def feed(request):
         # Prevent unscored from not appearing when not filtered
         if not (min_score == 0 and max_score == 100):
             listings = listings.filter(score__score__gte=min_score, score__score__lte=max_score)
+    location = request.GET.get("location", "").strip()
+    if location:
+        listings = listings.filter(location__icontains=location)
 
     # Order listings by the sort fields
     listings = listings.order_by(SORT_FIELDS[sort_by])
