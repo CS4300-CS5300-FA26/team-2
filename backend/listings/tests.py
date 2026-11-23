@@ -816,6 +816,7 @@ class ConcurrentNoteTests(TransactionTestCase):
     def test_parallel_notes_stop_at_50(self):
         start = threading.Barrier(10)
         results = []
+        errors = []  # any crash inside a request goes here, so the test fails
 
         def one():
             client = Client()
@@ -824,6 +825,8 @@ class ConcurrentNoteTests(TransactionTestCase):
             try:
                 url = f"/api/listings/{self.listing.id}/notes/"
                 results.append(client.post(url, {"note": "hi"}, content_type="application/json").status_code)
+            except Exception as error:
+                errors.append(error)
             finally:
                 connection.close()
 
@@ -832,5 +835,7 @@ class ConcurrentNoteTests(TransactionTestCase):
             t.start()
         for t in threads:
             t.join()
-        self.assertEqual(results.count(201), 1)
+        # nothing crashed, and all 10 answered: 1 saved (201), 9 told "limit reached" (400)
+        self.assertEqual(errors, [])
+        self.assertEqual(sorted(results), [201] + [400] * 9)
         self.assertEqual(Note.objects.count(), 50)
