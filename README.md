@@ -224,6 +224,8 @@ This section records where and when team members used AI assistance: the tool us
 | Nicole | Claude (Anthropic) | US4.5 and US4.6: status bar on saved jobs, status filter, and note dates (Bookmark status field and migration, status API, filter, React status bar, unit tests, Behave scenarios, README) | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), chose the status bar design, checked the Saved Jobs page in the browser, and committed the final work |
 | Seth | Codex (OpenAI) | US2.5 default resume model, API, React controls, unit tests, behavior scenario, and troubleshooting | Used for guidance and code suggestions; I reviewed each change, tested the complete feature in the browser, and ran the automated tests |
 | Seth | Codex (OpenAI) | US2.4 resume parsing service, editable profile page, API, tests, behavior scenario, and troubleshooting | Used for guidance and code suggestions; I reviewed each change, tested the complete feature in the browser, and ran the automated tests |
+| Nicole | Claude (Anthropic) | Sprint 3 tooling: flake8 lint in CI with a report, fixing the old lint problems, Dependabot setup and grouping, Django 5.2 upgrade | Used as a starting point; I ran the tests and lint myself, checked that CI and the deploy were green, and committed the final work |
+| Nicole | Claude (Anthropic) | Sprint 4 security fixes for notes (report F6 and F3): text checks, 2000-character and 50-note limits, row lock, unit and concurrency tests, plus the Vite 8 upgrade | Used as a starting point; I wrote the tests first and confirmed they failed (TDD), worked through the PR review comments, ran all tests and npm audit, and committed the final work |
 | [Add more as needed] | | | |
 
 ### Notes
