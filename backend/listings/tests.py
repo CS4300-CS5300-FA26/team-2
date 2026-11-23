@@ -791,3 +791,8 @@ class NoteSafetyTests(ApiTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["detail"], "A saved job can have at most 50 notes.")
         self.assertEqual(Note.objects.count(), 50)
+
+    # F6 (PR review): a broken character like "\ud800" can't be saved, so it gets a 400, not a crash
+    def test_note_with_broken_character_is_refused(self):
+        self.assertEqual(self.add_note("a\ud800b").status_code, 400)
+        self.assertFalse(Note.objects.exists())

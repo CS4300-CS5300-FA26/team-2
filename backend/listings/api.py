@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from django.db.models import F
+from django.db import transaction  # PR review: for the note lock
 
 from .models import Bookmark, Listing, Note, Report
 
@@ -23,6 +24,16 @@ REPORT_REASONS = {"fake", "inappropriate", "harmful-or-illegal"}
 # Sprint 4 (security report F3): limits so nobody can fill up our database with notes
 MAX_NOTE_LENGTH = 2000   # characters in one note
 MAX_NOTES_PER_JOB = 50   # notes on one saved job
+
+
+# Sprint 4 (F6, PR review): some broken characters (like "\ud800") can't be
+# turned into normal text, so the database can't save them. This checks first.
+def can_be_saved(text):
+    try:
+        text.encode("utf-8")
+        return True
+    except UnicodeEncodeError:
+        return False
 
 
 # Sprint 3: one note as JSON, including when it was written.
@@ -161,7 +172,7 @@ def add_note(request, listing_id):
         note = None
     # Sprint 4 (F6): the note has to be real text. null used to be saved as "None",
     # and a hidden NUL character ("\x00") crashed the live database.
-    if not isinstance(note, str) or "\x00" in note:
+    if not isinstance(note, str) or "\x00" in note or not can_be_saved(note):
         return JsonResponse({"detail": "Note must be text."}, status=400)
     text = note.strip()
     if not text:
@@ -169,9 +180,13 @@ def add_note(request, listing_id):
     # Sprint 4 (F3): not too long, and not too many on one saved job
     if len(text) > MAX_NOTE_LENGTH:
         return JsonResponse({"detail": f"A note can be at most {MAX_NOTE_LENGTH} characters."}, status=400)
-    if bookmark.notes.count() >= MAX_NOTES_PER_JOB:
-        return JsonResponse({"detail": f"A saved job can have at most {MAX_NOTES_PER_JOB} notes."}, status=400)
-    note = Note.objects.create(bookmark=bookmark, text=text)
+    # PR review: lock this saved job while we count and add, so 2 requests
+    # at the same time can't both sneak past the 50 note limit
+    with transaction.atomic():
+        Bookmark.objects.select_for_update().get(id=bookmark.id)
+        if bookmark.notes.count() >= MAX_NOTES_PER_JOB:
+            return JsonResponse({"detail": f"A saved job can have at most {MAX_NOTES_PER_JOB} notes."}, status=400)
+        note = Note.objects.create(bookmark=bookmark, text=text)
     # Sprint 3: send the date and time too, so the page can show it right away
     return JsonResponse(_note(note), status=201)
 
