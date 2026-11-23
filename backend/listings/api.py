@@ -20,6 +20,10 @@ STATUSES = [value for value, label in Bookmark.STATUS_CHOICES]
 # The reasons that can be given for a listing report
 REPORT_REASONS = {"fake", "inappropriate", "harmful-or-illegal"}
 
+# Sprint 4 (security report F3): limits so nobody can fill up our database with notes
+MAX_NOTE_LENGTH = 2000   # characters in one note
+MAX_NOTES_PER_JOB = 50   # notes on one saved job
+
 
 # Sprint 3: one note as JSON, including when it was written.
 # isoformat() turns the date into text like "2026-11-09T19:10:00+00:00",
@@ -152,11 +156,21 @@ def add_note(request, listing_id):
     # 404 unless it's MY bookmark, so nobody can note someone else's save
     bookmark = get_object_or_404(Bookmark, user=request.user, listing_id=listing_id)
     try:
-        text = str(json.loads(request.body or b"{}").get("note", "")).strip()
+        note = json.loads(request.body or b"{}").get("note")
     except (ValueError, AttributeError):
-        text = ""
+        note = None
+    # Sprint 4 (F6): the note has to be real text. null used to be saved as "None",
+    # and a hidden NUL character ("\x00") crashed the live database.
+    if not isinstance(note, str) or "\x00" in note:
+        return JsonResponse({"detail": "Note must be text."}, status=400)
+    text = note.strip()
     if not text:
         return JsonResponse({"detail": "Note cannot be empty."}, status=400)
+    # Sprint 4 (F3): not too long, and not too many on one saved job
+    if len(text) > MAX_NOTE_LENGTH:
+        return JsonResponse({"detail": f"A note can be at most {MAX_NOTE_LENGTH} characters."}, status=400)
+    if bookmark.notes.count() >= MAX_NOTES_PER_JOB:
+        return JsonResponse({"detail": f"A saved job can have at most {MAX_NOTES_PER_JOB} notes."}, status=400)
     note = Note.objects.create(bookmark=bookmark, text=text)
     # Sprint 3: send the date and time too, so the page can show it right away
     return JsonResponse(_note(note), status=201)

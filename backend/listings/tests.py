@@ -757,3 +757,37 @@ class ReportTests(ApiTestCase):
             "This user has already made a report for this listing.",
         )
         self.assertEqual(Report.objects.count(), 1)
+
+
+# Sprint 4 (security report F6 + F3): notes must be real text, not too long, and not too many
+class NoteSafetyTests(ApiTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self.bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+
+    # F6: null used to be saved as the word "None", and numbers or lists were turned into text
+    def test_note_that_is_not_text_is_refused(self):
+        for bad in (None, 123, ["a"], {"a": 1}):
+            with self.subTest(note=bad):
+                self.assertEqual(self.add_note(bad).status_code, 400)
+        self.assertFalse(Note.objects.exists())
+
+    # F6: a hidden NUL character ("\x00") crashed the live database (Postgres can't store it)
+    def test_note_with_nul_character_is_refused(self):
+        self.assertEqual(self.add_note("a\x00b").status_code, 400)
+        self.assertFalse(Note.objects.exists())
+
+    # F3: a note can be at most 2000 characters
+    def test_note_too_long_is_refused(self):
+        self.assertEqual(self.add_note("x" * 2001).status_code, 400)
+        self.assertEqual(self.add_note("x" * 2000).status_code, 201)
+
+    # F3: a saved job can have at most 50 notes
+    def test_at_most_50_notes_per_saved_job(self):
+        for i in range(50):
+            Note.objects.create(bookmark=self.bookmark, text=f"note {i}")
+        response = self.add_note("one too many")
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], "A saved job can have at most 50 notes.")
+        self.assertEqual(Note.objects.count(), 50)
