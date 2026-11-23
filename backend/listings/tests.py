@@ -6,7 +6,10 @@ from urllib.error import HTTPError, URLError  # the errors urlopen can raise
 from django.contrib.auth import get_user_model
 from django.core.management import call_command  # runs "python manage.py ..." inside a test
 from django.core.management.base import CommandError
-from django.test import TestCase, override_settings  # override_settings = pretend a setting has a different value
+import threading  # PR review: to send many requests at the same time
+import unittest
+from django.db import connection
+from django.test import Client, TestCase, TransactionTestCase, override_settings  # override_settings = pretend a setting has a different value
 from django.utils import timezone
 
 from ai_intelligence.models import CredibilityScore
@@ -796,3 +799,38 @@ class NoteSafetyTests(ApiTestCase):
     def test_note_with_broken_character_is_refused(self):
         self.assertEqual(self.add_note("a\ud800b").status_code, 400)
         self.assertFalse(Note.objects.exists())
+
+
+# PR review: 10 requests at the same moment still can't go past 50 notes.
+# Needs real row locks, so it only runs on PostgreSQL (what CI and the live site use).
+@unittest.skipUnless(connection.vendor == "postgresql", "row locks need PostgreSQL")
+class ConcurrentNoteTests(TransactionTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="testuser", password="testpass123", first_name="Test", last_name="User", email="testuser@example.com")
+        self.listing = Listing.objects.create(title="Software Intern", company="Lockheed")
+        bookmark = Bookmark.objects.create(user=self.user, listing=self.listing)
+        # 49 notes already, so only 1 more is allowed
+        for i in range(49):
+            Note.objects.create(bookmark=bookmark, text=f"note {i}")
+
+    def test_parallel_notes_stop_at_50(self):
+        start = threading.Barrier(10)
+        results = []
+
+        def one():
+            client = Client()
+            client.force_login(self.user)
+            start.wait()
+            try:
+                url = f"/api/listings/{self.listing.id}/notes/"
+                results.append(client.post(url, {"note": "hi"}, content_type="application/json").status_code)
+            finally:
+                connection.close()
+
+        threads = [threading.Thread(target=one) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(results.count(201), 1)
+        self.assertEqual(Note.objects.count(), 50)
